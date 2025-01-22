@@ -1,0 +1,3 @@
+uvicorn
+websocket
+fastapi
