@@ -1,31 +1,21 @@
-// This file is a fallback for using MaterialIcons on Android and web.
-
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import { SymbolWeight } from 'expo-symbols';
 import React from 'react';
-import { OpaqueColorValue, StyleProp, ViewStyle } from 'react-native';
+import { OpaqueColorValue, StyleProp, TextStyle } from 'react-native';
 
-// Add your SFSymbol to MaterialIcons mappings here.
-const MAPPING = {
-  // See MaterialIcons here: https://icons.expo.fyi
-  // See SF Symbols in the SF Symbols app on Mac.
+// Add your MaterialIcons mappings here
+const MATERIAL_MAPPING = {
   'house.fill': 'home',
   'paperplane.fill': 'send',
   'chevron.left.forwardslash.chevron.right': 'code',
   'chevron.right': 'chevron-right',
-} as Partial<
-  Record<
-    import('expo-symbols').SymbolViewProps['name'],
-    React.ComponentProps<typeof MaterialIcons>['name']
-  >
->;
+  'history': 'history',
+  'workout': 'fitness-center'
+} as const;
 
-export type IconSymbolName = keyof typeof MAPPING;
+export type IconSymbolName = keyof typeof MATERIAL_MAPPING;
 
 /**
- * An icon component that uses native SFSymbols on iOS, and MaterialIcons on Android and web. This ensures a consistent look across platforms, and optimal resource usage.
- *
- * Icon `name`s are based on SFSymbols and require manual mapping to MaterialIcons.
+ * A simplified icon component that uses only MaterialIcons.
  */
 export function IconSymbol({
   name,
@@ -36,8 +26,21 @@ export function IconSymbol({
   name: IconSymbolName;
   size?: number;
   color: string | OpaqueColorValue;
-  style?: StyleProp<ViewStyle>;
-  weight?: SymbolWeight;
+  style?: StyleProp<TextStyle>;
 }) {
-  return <MaterialIcons color={color} size={size} name={MAPPING[name]} style={style} />;
+  const mappedIcon = MATERIAL_MAPPING[name];
+
+  if (mappedIcon) {
+    return (
+      <MaterialIcons
+        name={mappedIcon}
+        size={size}
+        color={color}
+        style={style}
+      />
+    );
+  }
+
+  console.warn(`IconSymbol: No mapping found for icon "${name}".`);
+  return null; // Return null if the icon name doesn't exist in the mapping
 }
