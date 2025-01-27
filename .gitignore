@@ -1,0 +1,7 @@
+.exe
+*.cfg
+pi.code-workspace
+*/__pycache__
+/Include
+/Lib
+/Scripts
