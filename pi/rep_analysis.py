@@ -8,6 +8,7 @@ from enum import Enum
 import numpy as np
 
 import matplotlib.pyplot as plt
+from filtering import MovingAverage
 
 # import magnet as mag
 # import accelerometer
@@ -30,8 +31,8 @@ eg. SetData.accel = [
 ## CLASSES
 @dataclass
 class SetData:
-    accel: list[list]
-    magn: list[list]
+    accel: list[ list[ float, float, float] ]
+    magn: list[ list[float, float, float] ]
     sample_time: float
 
 
@@ -41,10 +42,6 @@ class Exercise(Enum):
 
 
 ## FNS
-def distance_pnt2pnt(p1, p2) -> float:
-    return np.sqrt( (p1[0] - p2[0])**2 + (p1[1] - p1[1])**2 + (p1[2] - p2[2])**2 )
-
-
 def contains_nan(dataset) -> bool:
     dataset = np.array(dataset)
     dataset.flatten()
@@ -59,11 +56,16 @@ def isolate_axis(points: list[list[float]], axis: int) -> list[float]:
     return [point[axis] for point in points]
 
 
-def closest_point_on_line(point: list[float], line: list[list[float]]):
-    min_dist = np.inf
-    closest_point = None
+def distance_pnt2pnt(p1: tuple[float, float, float], p2: tuple[float, float, float]) -> float:
+    return np.linalg.norm(np.array(p1) - np.array(p2))
+    # return np.sqrt( (p1[0] - p2[0])**2 + (p1[1] - p1[1])**2 + (p1[2] - p2[2])**2 )
+
+
+def closest_point_on_line(point: tuple[float, float, float], line: list[tuple[float, float, float]]):
+    min_dist: float = np.inf
+    closest_point: tuple[float, float, float] = None
     for linept in line:
-        dist = distance_pnt2pnt(point, linept)
+        dist: float = distance_pnt2pnt(point, linept)
         if dist < min_dist:
             min_dist = dist
             closest_point = linept
@@ -71,76 +73,35 @@ def closest_point_on_line(point: list[float], line: list[list[float]]):
     return closest_point, min_dist
     
 
-    # Use linear algebra to find closest point
-    point = np.array(point)
-    closest_point = 0, 0, 0
-    min_distance = np.inf
-    
-    for i in range(len(line) - 1):
-        # Define the segment endpoints
-        A = np.array(line[i])
-        B = np.array(line[i + 1])
-        
-        # Vector from A to B and from A to the point
-        AB = B - A
-        AP = point - A
-        
-        # Project AP onto AB, get the parameter t
-        t = np.dot(AP, AB) / np.dot(AB, AB)
 
-        # print(t)
-        
-        # Clamp t to the range [0, 1]
-        t = max(0, min(1 , t))
-        
-        # Compute the closest point on the segment
-        Q = A + t * AB
-        
-        # Compute the distance to the point
-        distance = np.linalg.norm(point - Q)
-        
-        # Update the closest point if necessary
-        if distance < min_distance:
-            min_distance = distance
-            closest_point = Q
-    
-    return closest_point, min_distance
-
-
-def get_SetData_pos_vel(data: SetData) -> list[ list[list] ]:
+def get_SetData_pos_vel(data: SetData) -> list[ tuple[float, float, float] ]:
     sample_time = data.sample_time
 
-    pos = [(0.0, 0.0, 0.0)]
-    vel = [(0.0, 0.0, 0.0)]
+    pos = []
+    vel = []
 
-    current_x_vel = 0
-    current_y_vel = 0
-    current_z_vel = 0
+    current_x_vel = 0.0
+    current_y_vel = 0.0
+    current_z_vel = 0.0
 
-    current_x_pos = 0
-    current_y_pos = 0
-    current_z_pos = 0
+    current_x_pos = 0.0
+    current_y_pos = 0.0
+    current_z_pos = 0.0
 
-    for accel in data.accel:
-        current_x_vel += accel[0] * sample_time
-        current_y_vel += accel[1] * sample_time
-        current_z_vel += accel[2] * sample_time
+    for acc in data.accel:
+        current_x_vel += acc[0] * sample_time
+        current_y_vel += acc[1] * sample_time
+        current_z_vel += acc[2] * sample_time
 
         vel.append((current_x_vel, current_y_vel, current_z_vel))
 
-    for v in vel:
-        current_x_pos += v[0] * sample_time
-        current_y_pos += v[1] * sample_time
-        current_z_pos += v[2] * sample_time
+        current_x_pos += current_x_vel * sample_time
+        current_y_pos += current_y_vel * sample_time
+        current_z_pos += current_z_vel * sample_time
 
         pos.append((current_x_pos, current_y_pos, current_z_pos))
 
-    # print(len(pos))
-    # print(len(vel))
-
-    return pos[1:], vel[1:]
-
-
+    return pos, vel
 
 
 def analyse_set(data: SetData, exercise: Exercise, cal_rep: SetData):
@@ -189,15 +150,16 @@ def analyse_set(data: SetData, exercise: Exercise, cal_rep: SetData):
 
     # do sth with it
 
-    return dists_to_cal, dists_var
+    return dists_to_cal, set_pos, set_vel
 
 
 def main() -> None:
     ts = 0.01
     t = np.arange(0, 10, ts)
 
-    perfect = np.array([(np.cos(i), 0, 0) for i in t])
-    noise = np.array([( (np.random.random() - 0.5), 0, 0) for _ in t])
+    perfect = np.array([(np.cos(i), i, 0) for i in t])
+    noise = np.array([( (np.random.random() - 0.5), i, 0) for i in t])
+    # noise = np.array([( (np.cos(2*i)), i, 0) for i in t])
 
     zeros_3d = [(0,0,0) for _ in t]
 
@@ -205,21 +167,62 @@ def main() -> None:
 
     set = SetData(None,  zeros_3d, ts)
     # set.accel = (perfect[0] + noise[0] - 0.5, np.zeros(len(t)), np.zeros(len(t)))
-    set.accel = [perfect[i] * 3 + noise[i] for i in range( len(t) )]
+    set.accel = np.array([(perfect[i][0] + 3*noise[i][0], t[i], 0) for i in range( len(t) )])
 
-    # print(len(set.accel[0]))
+    print(len(set.accel))
     
-    min_dists, _ = analyse_set(set, Exercise.TRICEP_PULLDOWN, calibration)
+    min_dists, set_pos, set_vel = analyse_set(set, Exercise.TRICEP_PULLDOWN, calibration)
 
+    cal_pos, cal_vel = get_SetData_pos_vel(calibration)
 
-    print(min_dists)
+    # print(min_dists)
+
+    # plt.figure()
+    # plt.plot(t, isolate_axis(perfect, 0), '--r')
+    # plt.plot(t, isolate_axis(set.accel, 0), '-b')
+    # plt.plot(t, min_dists, '-k')
+    # plt.legend(["Calibration Rep", "Our Rep", "Min Dists"])
+    # plt.grid(True)
 
     plt.figure()
-    plt.plot(t, isolate_axis(perfect, 0), '--r')
-    plt.plot(t, isolate_axis(set.accel, 0), '-b')
-    plt.plot(t, min_dists[1:], '-k')
-    plt.legend(["Calibration Rep", "Our Rep", "Min Dists"])
+    plt.plot(t, isolate_axis(cal_vel, 0), '--r')
+    plt.plot(t, isolate_axis(set_vel, 0), '-b')
+    plt.legend(['Cal Velocity', 'Set Velocity'])
     plt.grid(True)
+
+    plt.figure()
+    plt.plot(t, isolate_axis(cal_pos, 0), '--r')
+    plt.plot(t, isolate_axis(set_pos, 0), '-b')
+    plt.plot(t, min_dists, '-m')
+    plt.legend(['Cal Displacement', 'Set Displacement', 'Minimum Distance'])
+
+    # plt.figure()
+    # plt.plot(t, isolate_axis(set.accel, 0))
+    # plt.plot(t, isolate_axis(set_pos, 0))
+    # plt.plot(t, isolate_axis(set_vel, 0))
+    # plt.legend(["Accel", "Pos", "Vel"])
+    # plt.grid(True)
+
+
+    filter = MovingAverage(50)
+    filtered = [filter.update(val) for val in isolate_axis(set.accel, 0)]
+
+    plt.figure()
+    plt.plot(t, isolate_axis(set.accel, 0))
+    plt.plot(t, filtered)
+    plt.legend(['raw', 'filtered'])
+
+
+    ax = plt.figure().add_subplot(projection='3d')
+    ax.plot(isolate_axis(perfect, 0),
+             isolate_axis(perfect, 1),
+             isolate_axis(perfect, 2), '--r', linewidth=2)
+    ax.plot(isolate_axis(set.accel, 0),
+             isolate_axis(set.accel, 1),
+             isolate_axis(set.accel, 2), '-b', alpha=0.5)
+    plt.grid(True)
+
+
     plt.show()
 
 

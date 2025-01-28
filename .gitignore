@@ -2,6 +2,7 @@
 *.cfg
 pi.code-workspace
 */__pycache__
+/.vscode
 /Include
 /Lib
 /Scripts
