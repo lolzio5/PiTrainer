@@ -3,5 +3,7 @@
         {
             "name": "raspi_iot"
         }
-    ]
+    ],
+    "IDX.aI.enableInlineCompletion": true,
+    "IDX.aI.enableCodebaseIndexing": true
 }
