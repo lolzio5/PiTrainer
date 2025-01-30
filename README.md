@@ -13,7 +13,8 @@ Build the frontend app using `npm run android -- --tunnel` on Firebase. This wil
 - All data stored on the server
 
 ## Backend
-The backend is hosted on an AWS EC2 instance with IP address: '....'. The frontend automatically stores and retrieves information from the backend. Implemented as a Python Flask server, to communicate in HTTP as per the mark scheme with the app. Files found in 
+
+The backend is hosted on an AWS EC2 instance with IP address: '....'. The frontend automatically stores and retrieves information from the backend. Implemented as a Python Flask server, to communicate in HTTP as per the mark scheme with the app. Files found in
 > backend
 folder.
 
