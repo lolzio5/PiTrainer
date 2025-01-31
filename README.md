@@ -1,53 +1,42 @@
-> Edited for use in IDX on 07/09/12
+# PiTrainer (name is work in progress)
 
-# Welcome to your Expo app 👋
+_Your gym Personal Trainer, in your pocket!_
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+## Frontend
 
-## Get started
+Build the frontend app using `npm run android -- --tunnel` on Firebase. This will host the Expo app, that you can then retrieve using the Expo Go app on your phone. Scan the QR code and it will automatically render on your phone!
 
-#### Android
+**--> TO DO**
 
-Android previews are defined as a `workspace.onStart` hook and started as a vscode task when the workspace is opened/started.
+- Implement a login page, before accessing the app, so the data changes depending on who the user is
+- Allow for account creation
+- All data stored on the server
 
-Note, if you can't find the task, either:
-- Rebuild the environment (using command palette: `IDX: Rebuild Environment`), or
-- Run `npm run android -- --tunnel` command manually run android and see the output in your terminal. The device should pick up this new command and switch to start displaying the output from it.
+## Backend
 
-In the output of this command/task, you'll find options to open the app in a
+The backend is hosted on an AWS EC2 instance with IP address: '....'. The frontend automatically stores and retrieves information from the backend. Implemented as a Python Flask server, to communicate in HTTP as per the mark scheme with the app. Files found in
+> backend
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+folder.
 
-You'll also find options to open the app's developer menu, reload the app, and more.
+**--> TO DO**
 
-#### Web
+- Create the API routes
+    - Workout History
+    - Current workout data processing
+    - User accounts login and authentification
+    - Total stats
+- Create MongoDB to store data as JSON
 
-Web previews will be started and managred automatically. Use the toolbar to manually refresh.
+## User Device
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+Raspberry Pi Zero that connects via Bluetooth to the app, sending data through which is then stored on the server. Uses $I^2C$ to connect to a magnetometer and accelerometer to collect data about the current exercise. Files found in
+> pi
 
-## Get a fresh project
+folder.
 
-When you're ready, run:
+**--> TO DO**
 
-```bash
-npm run reset-project
-```
-
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
-
-## Learn more
-
-To learn more about developing your project with Expo, look at the following resources:
-
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
-
-## Join the community
-
-Join our community of developers creating universal apps.
-
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+- Connect via HTTP/MQTT to server and/or app
+- Implement rep counting locally (done), and package data
+- Develop and test algorithim to qualify data
