@@ -2,6 +2,8 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { View, Text, FlatList, StyleSheet, Dimensions, TouchableOpacity } from 'react-native';
 import { LineChart } from 'react-native-chart-kit';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useAuth } from '../context';
+import axios from 'axios';
 
 interface Workout {
   id: number;
@@ -18,52 +20,29 @@ export default function History() {
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedWorkout, setSelectedWorkout] = useState<Workout | null>(null);
-
-  const mockWorkouts: Workout[] = [
-    {
-      id: 1,
-      date: '2025-01-22',
-      rep_number: 50,
-      exercise: 'Triceps Extension',
-      rep_quality: Array.from({ length: 50 }, () => Math.floor(Math.random() * (95 - 50) + 50)),
-    },
-    {
-      id: 2,
-      date: '2025-01-24',
-      rep_number: 50,
-      exercise: 'Triceps Extension',
-      rep_quality: Array.from({ length: 50 }, () => Math.floor(Math.random() * (90 - 45) + 45)),
-    },
-    {
-      id: 3,
-      date: '2025-01-27',
-      rep_number: 50,
-      exercise: 'Triceps Extension',
-      rep_quality: Array.from({ length: 50 }, () => Math.floor(Math.random() * (85 - 40) + 40)),
-    },
-    {
-      id: 4,
-      date: '2025-01-28',
-      rep_number: 50,
-      exercise: 'Triceps Extension',
-      rep_quality: Array.from({ length: 50 }, () => Math.floor(Math.random() * (85 - 40) + 40)),
-    },
-    {
-      id: 5,
-      date: '2025-01-29',
-      rep_number: 50,
-      exercise: 'Triceps Extension',
-      rep_quality: Array.from({ length: 50 }, () => Math.floor(Math.random() * (85 - 40) + 40)),
-    },
-  ];
-
+  const { token } = useAuth();
   const fetchWorkouts = useCallback(async () => {
     try {
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-      setWorkouts(mockWorkouts);
-      setSelectedWorkout(mockWorkouts[mockWorkouts.length - 1]); // Default to the latest workout
+      setLoading(true);
+      if (token) {
+      // Use the token to access protected routes
+      axios
+        .get('http://18.170.31.251:80/api/history', {
+          headers: {
+            Authorization: `Bearer ${token}`,  // Send token in the request header
+          },
+        })
+        .then((response) => {
+          const data: Workout[] = response.data
+          setWorkouts(data);
+          setSelectedWorkout(data[data.length - 1]);
+        })
+        .catch((error) => {
+          console.error('Error fetching data', error);
+        });
+    }
     } catch (err: any) {
-      setError(err.message || 'An error occurred');
+      setError(err.message || "An error occurred while fetching workouts.");
     } finally {
       setLoading(false);
     }
@@ -75,7 +54,7 @@ export default function History() {
 
   if (loading) {
     return (
-      <View>
+      <View style={styles.container}>
         <Text>Loading...</Text>
       </View>
     );
@@ -83,7 +62,7 @@ export default function History() {
 
   if (error) {
     return (
-      <View>
+      <View style={styles.container}>
         <Text>Error: {error}</Text>
       </View>
     );

@@ -37,5 +37,6 @@ folder.
 
 **--> TO DO**
 
-- Connect via Bluetooth to the mobile app
-- Implement rep counting locally, and package data
+- Connect via HTTP/MQTT to server and/or app
+- Implement rep counting locally (done), and package data
+- Develop and test algorithim to qualify data
