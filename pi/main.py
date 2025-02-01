@@ -1,40 +1,86 @@
 import numpy as np
 import time
-from filtering import MovingAverage
+import json
+import requests
+
+from filtering import MovingAverage, KalmanFilter3D
 import accelerometer
 import magnet
 from rep_analysis import SetData, Exercise, analyse_set, isolate_axis
-from kalman import KalmanFilter3D
+
+## ---- CONSTANTS ---- ##
+exercises = [
+    'Tricep Pulldown',
+    'Cable Row',
+    'Other'
+]
+
+workout_states = [
+    'Idle',
+    'Working Out',
+]
+
+BACKEND_URL = "http://pastebin.com/api/api_post.php" # ??
+
+## ---- UTILS FUNCTIONS ---- ##
+
+def poll_workout_state() -> str:
+    r = requests.get(url=BACKEND_URL, params=['Workout State', 'Workout Name'])
+    data = r.json()
+    return data['Workout State'], data['Workout Name']
+    
+
+
+def send_rep_data(workout_name, rep_nb, timestamp, accel, vel, pos, magn) -> str:
+    data = {
+        'Name': workout_name ,
+        'Rep Number': rep_nb ,
+        'Timestamp': timestamp ,
+        'Acceleration 3D': accel ,
+        'Velocity 3D': vel ,
+        'Position 3D': pos ,
+        'Magnetometer 3D': magn ,
+    }
+    r = requests.post(url=BACKEND_URL, data=data)
+    return r.text
+
 
 
 def main() -> None:
-    # accelx_filter = MovingAverage(15)
-    # accely_filter = MovingAverage(15)
-    # accelz_filter = MovingAverage(15)
+    ts = 0.01
 
-    # magnetx_filter = MovingAverage(15)
-    # magnety_filter = MovingAverage(15)
-    # magnetz_filter = MovingAverage(15)
+    accelx_filter = KalmanFilter3D(ts)
+    accely_filter = KalmanFilter3D(ts)
+    accelz_filter = KalmanFilter3D(ts)
 
-    accelx_filter = KalmanFilter3D(0.01)
-    accely_filter = KalmanFilter3D(0.01)
-    accelz_filter = KalmanFilter3D(0.01)
+    magnetx_filter = MovingAverage(15)
+    magnety_filter = MovingAverage(15)
+    magnetz_filter = MovingAverage(15)
 
     accelerometer.lis3dh_init()
     # magnet.Mag_init()
 
-    accel_filtered: list[ tuple[float, float, float] ] = []
-    vel_filtered: list[ tuple[float, float, float ]] = []
-    pos_filtered: list[ tuple[float, float, float ]] = []
+    accel_filtered: list[ tuple[float, float, float ] ] = []
+    vel_filtered:   list[ tuple[float, float, float ] ] = []
+    pos_filtered:   list[ tuple[float, float, float ] ] = []
+
+    mag_filtered:   list[ tuple[float, float, float ] ] = []
+
+    workout_state = workout_states[0]
+    workout_name = exercises[-1]
+    current_rep = 0
 
     try:
         while True:
-            accelx, accely, accelz = accelerometer.lis3dh_read_xyz()
-            # current_magn = magnet.Mag_Read()
+            # Get workout State
+            workout_state, workout_name = poll_workout_state()
 
-            # accel_filtered.append((accelx_filter.update(current_accel[0]),
-            #                    accely_filter.update(current_accel[1]),
-            #                    accelz_filter.update(current_accel[2]),))
+            if workout_state == workout_states[-1]: # IF IDLE
+                time.sleep(ts)
+                continue
+
+            accelx, accely, accelz = accelerometer.lis3dh_read_xyz()
+            magx, magy, magz = magnet.Mag_Read()
 
             accelx_filter.step(accelx)
             accely_filter.step(accely)
@@ -52,18 +98,29 @@ def main() -> None:
                                    accely_filter.position,
                                    accelz_filter.position)) 
                                
+            mag_filtered.append((
+                magnetx_filter.update(magx),
+                magnety_filter.update(magy),
+                magnetz_filter.update(magz)
+            ))
 
-            # rep counter
+            current_rep, rep_counted = ... # rep counter
 
-            time.sleep(0.01)
+            if rep_counted:
+                send_rep_data(workout_name, current_rep, 
+                              time.time(), accel_filtered, 
+                              vel_filtered, pos_filtered, 
+                              mag_filtered)
+                current_rep = 0
 
-    except KeyboardInterrupt:
-        print('Exiting...')
-        print('You followed this displacement:\n')
-        print(f'\nACCELERATION\n: {isolate_axis(accel_filtered, 0)}')
-        print(f'\nVELOCITY\n: {isolate_axis(accel_filtered, 1)}')
-        print(f'\nDISPLACEMENT\n: {isolate_axis(accel_filtered, 2)}')
+            time.sleep(ts)
+
+    except:
+        print('Restarting...')
+        main()
+        pass
 
 
 if __name__ == '__main__':
-    main()
+    # main()
+    print('Hello World!\n\n lalalalala\nghudsgiluh')
