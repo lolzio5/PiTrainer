@@ -48,14 +48,15 @@ def send_rep_data(workout_name, rep_nb, timestamp, accel, vel, pos, magn) -> str
 
 def main() -> None:
     ts = 0.01
+    M = 50
 
     accelx_filter = KalmanFilter3D(ts)
     accely_filter = KalmanFilter3D(ts)
     accelz_filter = KalmanFilter3D(ts)
 
-    magnetx_filter = MovingAverage(15)
-    magnety_filter = MovingAverage(15)
-    magnetz_filter = MovingAverage(15)
+    magnetx_filter = MovingAverage(M)
+    magnety_filter = MovingAverage(M)
+    magnetz_filter = MovingAverage(M)
 
     accelerometer.lis3dh_init()
     # magnet.Mag_init()
@@ -70,11 +71,23 @@ def main() -> None:
     workout_name = exercises[-1]
     current_rep = 0
 
+    init_time = time.time()
+    g = 9.81
+
     try:
         while True:
             # Get workout State
             workout_state, workout_name = poll_workout_state()
 
+            # Timeout check
+            if time.time() - init_time > 300: # 5 min workout timeout
+                workout_state = workout_states[-1]
+                accel_filtered.clear()
+                vel_filtered.clear()
+                pos_filtered.clear()
+                mag_filtered.clear()
+
+            # Do nothing if in Idle mode
             if workout_state == workout_states[-1]: # IF IDLE
                 time.sleep(ts)
                 continue
@@ -122,5 +135,4 @@ def main() -> None:
 
 
 if __name__ == '__main__':
-    # main()
-    print('Hello World!\n\n lalalalala\nghudsgiluh')
+    main()
