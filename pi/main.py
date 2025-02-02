@@ -2,6 +2,7 @@ import numpy as np
 import time
 import json
 import requests
+import asyncio
 
 from filtering import MovingAverage, KalmanFilter3D
 import accelerometer
@@ -9,27 +10,21 @@ import magnet
 from rep_analysis import SetData, Exercise, analyse_set, isolate_axis
 
 ## ---- CONSTANTS ---- ##
-exercises = [
-    'Tricep Pulldown',
-    'Cable Row',
-    'Other'
-]
-
 workout_states = [
-    'Idle',
-    'Working Out',
+    'Tricep Extension',
+    'Cable Row',
+    'Idle'
 ]
 
-BACKEND_URL = "http://pastebin.com/api/api_post.php" # ??
+BACKEND_URL = "http://18.134.249.18:80/api"
 
 ## ---- UTILS FUNCTIONS ---- ##
 
 def poll_workout_state() -> str:
-    r = requests.get(url=BACKEND_URL, params=['Workout State', 'Workout Name'])
+    r = requests.get(url=BACKEND_URL + "/pipoll")
     data = r.json()
-    return data['Workout State'], data['Workout Name']
+    return data
     
-
 
 def send_rep_data(workout_name, rep_nb, timestamp, accel, vel, pos, magn) -> str:
     data = {
@@ -59,7 +54,7 @@ def main() -> None:
     magnetz_filter = MovingAverage(M)
 
     accelerometer.lis3dh_init()
-    # magnet.Mag_init()
+    magnet.Mag_init()
 
     accel_filtered: list[ tuple[float, float, float ] ] = []
     vel_filtered:   list[ tuple[float, float, float ] ] = []
@@ -67,17 +62,19 @@ def main() -> None:
 
     mag_filtered:   list[ tuple[float, float, float ] ] = []
 
-    workout_state = workout_states[0]
-    workout_name = exercises[-1]
+    workout_state = workout_states[-1]
     current_rep = 0
 
     init_time = time.time()
     g = 9.81
 
+    print('All ready! Sampling now...')
+    i = 0
     try:
         while True:
             # Get workout State
-            workout_state, workout_name = poll_workout_state()
+            if i % 1/ts == 0:
+                workout_state = poll_workout_state()
 
             # Timeout check
             if time.time() - init_time > 300: # 5 min workout timeout
@@ -87,13 +84,14 @@ def main() -> None:
                 pos_filtered.clear()
                 mag_filtered.clear()
 
-            # Do nothing if in Idle mode
+            # Do nothing if in Idle mode, check every 0.5s
             if workout_state == workout_states[-1]: # IF IDLE
-                time.sleep(ts)
+                time.sleep(0.5/ts)
                 continue
 
             accelx, accely, accelz = accelerometer.lis3dh_read_xyz()
-            magx, magy, magz = magnet.Mag_Read()
+            if i % 2 == 0: # 50 Hz for ts = 0.01 / fs = 100Hz
+                magx, magy, magz = magnet.Mag_Read()
 
             accelx_filter.step(accelx)
             accely_filter.step(accely)
@@ -117,22 +115,30 @@ def main() -> None:
                 magnetz_filter.update(magz)
             ))
 
-            current_rep, rep_counted = ... # rep counter
+        
 
-            if rep_counted:
-                send_rep_data(workout_name, current_rep, 
-                              time.time(), accel_filtered, 
-                              vel_filtered, pos_filtered, 
-                              mag_filtered)
-                current_rep = 0
+            # current_rep, rep_counted = ... # rep counter
+
+            # if rep_counted:
+            #     send_rep_data(workout_state, current_rep, 
+            #                   time.time(), accel_filtered, 
+            #                   vel_filtered, pos_filtered, 
+            #                   mag_filtered)
+                # current_rep = 0
 
             time.sleep(ts)
 
-    except:
+    except (KeyboardInterrupt, Exception) as e:
+        print(e)
+        print(accel_filtered)
+        print('\n\n\n\n')
+        print(mag_filtered)
         print('Restarting...')
-        main()
+        # main()
         pass
 
 
 if __name__ == '__main__':
     main()
+
+    # print(poll_workout_state())

@@ -1,6 +1,10 @@
+# import smbus2
+import time
 
-import smbus2, time
+## Default Bus
+from i2c_bus import bus
 
+## Registerss
 LIS3DH_ADDRESS = 0x18
 
 ## Control Registers
@@ -19,42 +23,40 @@ LIS3DH_REG_OUT_Y_H = 0x2B  # Y-axis MSB
 LIS3DH_REG_OUT_Z_L = 0x2C  # Z-axis LSB
 LIS3DH_REG_OUT_Z_H = 0x2D  # Z-axis MSB
 
-## Default Bus
-bus = smbus2.SMBus(1)
-
-
-def i2c_write_reg(address: int, register: int, value) -> None:
-    bus.write_byte_data(address, register, value)
-
-
-def i2c_read_reg(address:int, register: int) -> int:
-    return bus.read_byte_data(address, register)
-
 
 def lis3dh_init() -> None:
     print('Initialising LIS3DH...')
     # enable high resolution, xyz axes, and 100Hz sampling
-    i2c_write_reg(LIS3DH_ADDRESS, LIS3DH_REG_CTRL_REG1, 0b0101_0111)
-    #High resolution means each digit represets 1mg
-    # set HPF
-    i2c_write_reg(LIS3DH_ADDRESS, LIS3DH_REG_CTRL_REG2, 0b0000_0010)
+    try:
+        bus.write_byte_data(LIS3DH_ADDRESS, LIS3DH_REG_CTRL_REG1, 0b0101_0111)
 
-    # the rest of the registers are ok with 0x00 by default
+        #High resolution means each digit represets 1mg
+        # set HPF
+        bus.write_byte_data(LIS3DH_ADDRESS, LIS3DH_REG_CTRL_REG2, 0b0000_0010)
 
-    # disable interrupts
-    # i2c_write_reg(LIS3DH_ADDRESS, LIS3DH_REG_CTRL_REG3, 0b0000_0000)
-    time.sleep(0.1)
+        # the rest of the registers are ok with 0x00 by default
+
+        # disable interrupts
+        # i2c_write_reg(LIS3DH_ADDRESS, LIS3DH_REG_CTRL_REG3, 0b0000_0000)
+        time.sleep(0.1)
+    except OSError:
+        LIS3DH_ADDRESS = 0x19
+        bus.write_byte_data(LIS3DH_ADDRESS, LIS3DH_REG_CTRL_REG1, 0b0101_0111)
+
+        #High resolution means each digit represets 1mg
+        # set HPF
+        bus.write_byte_data(LIS3DH_ADDRESS, LIS3DH_REG_CTRL_REG2, 0b0000_0010)
 
 
 def lis3dh_read_xyz_raw() -> tuple[int, int, int]:
-    X_L = i2c_read_reg(LIS3DH_ADDRESS, LIS3DH_REG_OUT_X_L)
-    X_H = i2c_read_reg(LIS3DH_ADDRESS, LIS3DH_REG_OUT_X_H)
+    X_L = bus.read_byte_data(LIS3DH_ADDRESS, LIS3DH_REG_OUT_X_L)
+    X_H = bus.read_byte_data(LIS3DH_ADDRESS, LIS3DH_REG_OUT_X_H)
 
-    Y_L = i2c_read_reg(LIS3DH_ADDRESS, LIS3DH_REG_OUT_Y_L)
-    Y_H = i2c_read_reg(LIS3DH_ADDRESS, LIS3DH_REG_OUT_Y_H)
+    Y_L = bus.read_byte_data(LIS3DH_ADDRESS, LIS3DH_REG_OUT_Y_L)
+    Y_H = bus.read_byte_data(LIS3DH_ADDRESS, LIS3DH_REG_OUT_Y_H)
     
-    Z_L = i2c_read_reg(LIS3DH_ADDRESS, LIS3DH_REG_OUT_Z_L)
-    Z_H = i2c_read_reg(LIS3DH_ADDRESS, LIS3DH_REG_OUT_Z_H)
+    Z_L = bus.read_byte_data(LIS3DH_ADDRESS, LIS3DH_REG_OUT_Z_L)
+    Z_H = bus.read_byte_data(LIS3DH_ADDRESS, LIS3DH_REG_OUT_Z_H)
 
     x = (X_H << 8) | X_L
     y = (Y_H << 8) | Y_L
