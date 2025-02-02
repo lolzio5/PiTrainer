@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { TextInput, Text, View, StyleSheet, TouchableOpacity } from 'react-native';
-import axios from 'axios';
+import axios, { AxiosError } from 'axios';
 import { useAuth } from './context';
 import { router } from 'expo-router';
 
@@ -19,9 +19,15 @@ export default function LoginScreen() {
       setToken(response.data.access_token);
       router.replace('./(tabs)');
     } catch (err) {
-      setError('Invalid credentials. Please try again.');
-    }
+      if (err instanceof AxiosError) {
+        if (err.response){
+        setError(err.response.data.error);  // Display backend error message
+      } 
+      }else {
+        setError('Network error. Please try again later.');
+      }
   };
+}
 
   return (
     <View style={styles.container}>

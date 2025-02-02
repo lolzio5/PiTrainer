@@ -6,7 +6,8 @@ import { useAuth } from '../context';
 import axios from 'axios';
 
 interface Workout {
-  id: number;
+  UserID: string;
+  WorkoutID: string;
   date: string;
   rep_number: number;
   exercise: string;
@@ -33,9 +34,37 @@ export default function History() {
           },
         })
         .then((response) => {
-          const data: Workout[] = response.data
-          setWorkouts(data);
-          setSelectedWorkout(data[data.length - 1]);
+          const data = response.data;
+
+          // Ensure each item matches the Workout interface
+          const workouts: Workout[] = data
+          .filter((item: any) =>
+          item.UserID &&
+          item.id &&
+          item.date &&
+          typeof item.rep_number === 'number' &&
+          item.exercise &&
+          Array.isArray(item.rep_quality)
+          )
+          .map((item: any) => ({
+          UserID: item.UserID,
+          id: item.id,
+          date: item.date,
+          rep_number: item.rep_number,
+          exercise: item.exercise,
+          rep_quality: item.rep_quality,
+        }));
+          setWorkouts(workouts);
+          console.log(workouts)
+          console.log(workouts.map(w => ({
+            date: w.date,
+            isValid: !isNaN(new Date(w.date).getTime())
+          })));
+          const sortedWorkouts = workouts.sort(
+            (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+          );
+          setSelectedWorkout(sortedWorkouts[0]);
+          console.log(sortedWorkouts[0])
         })
         .catch((error) => {
           console.error('Error fetching data', error);
@@ -46,7 +75,7 @@ export default function History() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [token]);
 
   useEffect(() => {
     fetchWorkouts();
@@ -105,20 +134,31 @@ export default function History() {
       name: '',
       date: '',
     };
+  const defaultAverageChartData = {
+      labels: ["Jan", "Feb", "Mar", "Apr", "May"], // Example months
+      datasets: [
+        {
+          data: [0, 0, 0, 0, 0], // Placeholder averages
+          strokeWidth: 2,
+        },
+      ],
+    };
 
   // Chart data for average rep quality per workout
-  const averageChartData = {
-    labels: averageRepQuality.map((item) => {
-      const [year, month, day] = item.date.split('-');
-      return `${month}-${day}`; // Show only the month and day
-    }),
-    datasets: [
-      {
-        data: averageRepQuality.map((item) => item.averageRepQuality),
-        strokeWidth: 2,
-      },
-    ],
-  };
+  const averageChartData = averageRepQuality.length
+  ? {
+      labels: averageRepQuality.map((item) => {
+        const [year, month, day] = item.date.split('-');
+        return `${month}-${day}`; // Show month and day
+      }),
+      datasets: [
+        {
+          data: averageRepQuality.map((item) => item.averageRepQuality),
+          strokeWidth: 2,
+        },
+      ],
+    }
+  : defaultAverageChartData;
 
   return (
     <View style={styles.container}>
@@ -203,7 +243,8 @@ export default function History() {
       {/* Workout List */}
       <FlatList
         data={workouts}
-        keyExtractor={(item) => item.id.toString()}
+        keyExtractor={(item) => item.WorkoutID}
+        initialNumToRender={10}
         renderItem={({ item }) => (
           <TouchableOpacity
             style={styles.workoutItem}

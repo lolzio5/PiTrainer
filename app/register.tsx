@@ -15,7 +15,7 @@ export default function RegisterScreen() {
     setError('');
     setSuccess('');
     try {
-      const response = await axios.post('http://18.170.31.251:80/api/login', { email, password });
+      const response = await axios.post('http://18.134.249.18:80/api/signup', { email, password });
       setToken(response.data.access_token);
       router.replace('./(tabs)');  // Redirect after login
     } catch (err) {

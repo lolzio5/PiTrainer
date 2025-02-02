@@ -11,9 +11,7 @@ import { useColorScheme } from '@/hooks/useColorScheme';
 SplashScreen.preventAutoHideAsync();
 
 function RootLayoutNav() {
-  const { token } = useAuth();
   const colorScheme = useColorScheme();
-  console.log('Token:', token); // Debug token value
 
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
