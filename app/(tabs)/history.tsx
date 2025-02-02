@@ -27,7 +27,7 @@ export default function History() {
       if (token) {
       // Use the token to access protected routes
       axios
-        .get('http://18.170.31.251:80/api/history', {
+        .get('http://18.134.249.18:80/api/history', {
           headers: {
             Authorization: `Bearer ${token}`,  // Send token in the request header
           },

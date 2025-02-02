@@ -3,23 +3,34 @@ import { useFonts } from 'expo-font';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
-import { useEffect, useState  } from 'react';
+import { useEffect } from 'react';
 import 'react-native-reanimated';
-import { NavigationContainer } from '@react-navigation/native';
-import AuthProvider from './context'
-import {useAuth} from './context'
-
+import {AuthProvider, useAuth } from './context';
 import { useColorScheme } from '@/hooks/useColorScheme';
 
-// Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
 
-export default function RootLayout() {
+function RootLayoutNav() {
+  const { token } = useAuth();
   const colorScheme = useColorScheme();
+  console.log('Token:', token); // Debug token value
+
+  return (
+    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+      <Stack>
+        <Stack.Screen name="index" options={{ headerShown: false }} />
+        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        <Stack.Screen name="register" options={{ headerShown: false }} />
+      </Stack>
+      <StatusBar style="auto" />
+    </ThemeProvider>
+  );
+}
+
+export default function RootLayout() {
   const [loaded] = useFonts({
     SpaceMono: require('../assets/fonts/SpaceMono-Regular.ttf'),
   });
-  
 
   useEffect(() => {
     if (loaded) {
@@ -32,13 +43,8 @@ export default function RootLayout() {
   }
 
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <AuthProvider>
-      <Stack>
-        <Stack.Screen name="login" options={{ headerShown: false }} />
-      </Stack>
-      <StatusBar style="auto" />
-      </AuthProvider>
-    </ThemeProvider>
+    <AuthProvider>
+      <RootLayoutNav />
+    </AuthProvider>
   );
 }
