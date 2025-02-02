@@ -14,6 +14,11 @@ CORS(app)  # Enable CORS for frontend requests
 app.config["JWT_SECRET_KEY"] = "supersecretkey"  # Change this in production!
 jwt = JWTManager(app)
 
+# Connect the DynamoDB
+dynamodb = boto3.resource('dynamodb', region_name='us-east-1')
+workouts_table = dynamodb.Table("UserData")
+users_table = dynamodb.Table("Users")
+
 # Mock workout data
 def generate_rep_quality(min_val, max_val, num_reps=50):
     return [random.randint(min_val, max_val) for _ in range(num_reps)]
@@ -72,13 +77,7 @@ def calculate_rep_qualities(last_workout):
     ]
 
 
-def generate_mock_data(user_id):
-    data = request.get_json()
-    workouts_table = dynamodb.Table("UserData")
-    # Ensure required workout data is provided
-    if not all(k in data for k in ["date", "exercise", "rep_number", "rep_quality"]):
-        return jsonify({"error": "Missing workout data"}), 400
-
+def generate_mock_data(email):
     # Create mock workouts
     workouts = [
     {
@@ -93,24 +92,22 @@ def generate_mock_data(user_id):
     for data in workouts:
 
         workout_item = {
-            "UserID": user_id,  # Associate workout with logged-in user
+            "UserID": email,  # Associate workout with logged-in user
             "WorkoutID": data['id'],
-            "Date": ["date"],
-            "Exercise": data["exercise"],
-            "RepNumber": data["rep_number"],
-            "RepQuality": data["rep_quality"]
+            "date": data["date"],
+            "exercise": data["exercise"],
+            "rep_number": data["rep_number"],
+            "rep_quality": data["rep_quality"]
         }
 
         workouts_table.put_item(Item=workout_item)  # Store in DynamoDB
-
     return jsonify({"message": "Workout added successfully!"}), 201
-dynamodb = boto3.resource('dynamodb', region_name='us-east-1')
 
 def initialize_tables():
     create_database_table(dynamodb)
     create_user_table(dynamodb)
 
-users_table = dynamodb.Table("Users")
+
 
 @app.route("/api/signup", methods=["POST"])
 def signup():
@@ -125,7 +122,8 @@ def signup():
 
     user_id=register_user(email, password, users_table)
     access_token = create_access_token(identity=email)
-    generate_mock_data(user_id)
+    generate_mock_data(email)
+    print(f"Registered {email}!")
     return jsonify({"access_token": access_token}), 200
 
 @app.route("/api/login", methods=["POST"])
@@ -149,20 +147,25 @@ def login():
 @jwt_required()
 def get_history():
     # Return the total workout history to be displayed in the graphs and the 
+    print(f"Authorization header: {request.headers.get('Authorization')}")
     current_user = get_jwt_identity()  # Get the logged-in user's ID
+    print(current_user)
     workouts_table = dynamodb.Table("UserData")
 
+    
     # Query all workouts for the user, sorted by date
     response = workouts_table.query(
         KeyConditionExpression="UserID = :user",
         ExpressionAttributeValues={":user": current_user},
         ScanIndexForward=True  # Sort workouts from oldest to newest
     )
-    workouts = response.get("Items", [])
-    if not workouts:
+    items = response.get("Items", [])
+    for item in items:
+        print(item)
+    if not response:
         return jsonify({"error": "No workouts found for this user"}), 404
     
-    return jsonify(workouts)
+    return jsonify(response)
 
 @app.route("/api/home", methods=["GET"])
 @jwt_required()
@@ -176,15 +179,15 @@ def get_home():
         ExpressionAttributeValues={":user": current_user},
         ScanIndexForward=True  # Sort workouts from oldest to newest
     )
-    workouts = response.get("Items", [])
+    items = response.get("Items", [])
 
-    if not workouts:
+    if not items:
         return jsonify({"error": "No workouts found for this user"}), 404
     # Process the rep_quality array
-    workout_qualities = calculate_rep_qualities(workouts[-1])
+    workout_qualities = calculate_rep_qualities(items[-1])
         
     # Calculate lifetime metrics as you previously did
-    metrics = calculate_lifetime_metrics(workouts)
+    metrics = calculate_lifetime_metrics(items)
 
     return jsonify({
         "lifetime_metrics": metrics,

@@ -10,15 +10,13 @@ def hash_password(password):
 
 # Function to create a new user
 def register_user(email, password, users_table):
-    user_id = str(uuid.uuid4())  # Generate unique user ID
     hashed_pw = hash_password(password)
     users_table.put_item(Item={
-        "UserID": user_id,
-        "UserEmail": email,
+        "UserID": email,
         "HashedPassword": hashed_pw,
         "CreatedAt": datetime.now().isoformat()
     })
-    return user_id
+    return email
 
 def verify_user(email, password, users_table):
     response = users_table.scan(
