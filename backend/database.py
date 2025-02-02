@@ -18,7 +18,7 @@ def create_database_table(dynamodb=None):
         ],
         AttributeDefinitions=[
             {'AttributeName': 'UserID', 'AttributeType': 'S'},  # String
-            {'AttributeName': 'date', 'AttributeType': 'S'}     # String
+            {'AttributeName': 'WorkoutID', 'AttributeType': 'S'}     # String
         ],
         ProvisionedThroughput={
             'ReadCapacityUnits': 10,

@@ -1,0 +1,6 @@
+boto3
+flask-jwt-extended
+flask-cors
+flask
+uuid
+bcrypt

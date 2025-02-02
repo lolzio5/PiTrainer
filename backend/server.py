@@ -8,7 +8,7 @@ from login import register_user, verify_user
 from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity
 import uuid
 
-# ssh -i "C:\Users\themi\Downloads\tradingbotkey.pem" ubuntu@18.170.31.251
+# ssh -i "C:\Users\themi\Downloads\piTrainerKey.pem" ubuntu@18.134.249.18
 app = Flask(__name__)
 CORS(app)  # Enable CORS for frontend requests
 app.config["JWT_SECRET_KEY"] = "supersecretkey"  # Change this in production!
@@ -72,8 +72,7 @@ def calculate_rep_qualities(last_workout):
     ]
 
 
-def generate_mock_data():
-    user_id = get_jwt_identity()  # Get the logged-in user's ID
+def generate_mock_data(user_id):
     data = request.get_json()
     workouts_table = dynamodb.Table("UserData")
     # Ensure required workout data is provided
@@ -107,7 +106,6 @@ def generate_mock_data():
     return jsonify({"message": "Workout added successfully!"}), 201
 dynamodb = boto3.resource('dynamodb', region_name='us-east-1')
 
-@app.before_first_request
 def initialize_tables():
     create_database_table(dynamodb)
     create_user_table(dynamodb)
@@ -125,9 +123,10 @@ def signup():
     if "Item" in response:
         return jsonify({"error": "Email already exists"}), 400
 
-    register_user(email, password, users_table)
-    generate_mock_data()
-    return jsonify({"message": "User registered successfully"}), 201
+    user_id=register_user(email, password, users_table)
+    access_token = create_access_token(identity=email)
+    generate_mock_data(user_id)
+    return jsonify({"access_token": access_token}), 200
 
 @app.route("/api/login", methods=["POST"])
 def login():
@@ -135,12 +134,16 @@ def login():
     email = data.get("email")
     password = data.get("password")
 
-    verify_user(email, password, users_table)
+    verify=verify_user(email, password, users_table)
+    if verify == "Correct":
+        access_token = create_access_token(identity=email)
+        return jsonify({"access_token": access_token}), 200
 
-    # Generate JWT Token
-    access_token = create_access_token(identity=email)
+    elif verify == "Wrong":
+        return jsonify({"error": "Incorrect password. Please try again."}), 401  # Unauthorized
 
-    return jsonify({"access_token": access_token}), 200
+    else:
+        return jsonify({"error": "Account does not exist. Please register."}), 404  # Not Found
 
 @app.route("/api/history", methods=["GET"])
 @jwt_required()
@@ -196,5 +199,12 @@ def process_data():
     # Calculate the rep quality and store it in the database
     return 0
 
+@app.route("/api/pipoll", methods=["GET"])
+def pi_poll():
+    # Tell the Pi whether a workout has been started
+    return jsonify("Triceps Extension")
+
 if __name__ == "__main__":
+    with app.app_context():
+        initialize_tables()  # Call directly inside app context
     app.run(host="0.0.0.0", port=80)

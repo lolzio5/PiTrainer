@@ -33,6 +33,6 @@ def verify_user(email, password, users_table):
     
     # Verify password
     if bcrypt.checkpw(password.encode('utf-8'), user["HashedPassword"].encode('utf-8')):
-        return user["UserID"]  # Return user ID if successful
+        return "Correct"
     else:
-        return None 
+        return "Wrong"
