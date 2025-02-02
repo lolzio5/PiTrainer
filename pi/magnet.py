@@ -2,7 +2,7 @@ import smbus2
 import time
 
 # Get I2C bus
-bus = smbus2.SMBus(1)
+from i2c_bus import bus
 
 # MLX90393 address, 0x0C(12)
 MLX90393_ADDR = 0x0C
