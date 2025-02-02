@@ -43,7 +43,7 @@ const fetchWorkoutData = async (token: string | null): Promise<{
     if (token) {
       // Use the token to access protected routes
       await axios
-        .get('http://18.170.31.251:80/api/home', {
+        .get('http://18.134.249.18:80/api/home', {
           headers: {
             Authorization: `Bearer ${token}`,  // Send token in the request header
           },
