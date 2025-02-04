@@ -19,15 +19,17 @@ def register_user(email, password, users_table):
     return email
 
 def verify_user(email, password, users_table):
-    response = users_table.scan(
-        FilterExpression="UserEmail = :email",
-        ExpressionAttributeValues={":email": email}
-    )
     
+    response = users_table.query(
+        KeyConditionExpression="UserID = :user",
+        ExpressionAttributeValues={":user": email},
+    )
+    items = response.get("Items", [])
+    print(items)
     if not response["Items"]:
         return None  # User not found
-
     user = response["Items"][0]
+    print(user)
     
     # Verify password
     if bcrypt.checkpw(password.encode('utf-8'), user["HashedPassword"].encode('utf-8')):

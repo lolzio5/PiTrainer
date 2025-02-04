@@ -54,19 +54,8 @@ def create_user_table(dynamodb=None):
     return table
 
 
-def delete_and_recreate_table(dynamodb, table_name):
-    db_properties = dynamodb.describe_table(table_name)
-    schema = db_properties["Table"]
-
+def delete_table(table_name):
     # Delete table
-    try:
-        dynamodb.delete_table(TableName=table_name)
-        print(f"Deleting table {table_name}...")
-        waiter = dynamodb.get_waiter("table_not_exists")
-        waiter.wait(TableName=table_name)
-        print(f"Table {table_name} deleted.")
-
-    except dynamodb.exceptions.ResourceNotFoundException:
-        print(f"Table {table_name} does not exist.")
-
-    dynamodb.create_table(*schema)
+    dynamodb=boto3.client('dynamodb',region_name='us-east-1')
+    dynamodb.delete_table(TableName=table_name)
+    print(f"Deleting table {table_name}...")

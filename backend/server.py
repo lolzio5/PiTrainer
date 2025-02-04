@@ -2,11 +2,12 @@ from flask import Flask, jsonify, request
 from flask_cors import CORS
 from datetime import datetime, timedelta
 import random
-from database import create_database_table, create_user_table
+from database import create_database_table, create_user_table, delete_table
 import boto3
 from login import register_user, verify_user
 from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity
 import uuid
+import json
 
 # ssh -i "C:\Users\themi\Downloads\piTrainerKey.pem" ubuntu@18.134.249.18
 app = Flask(__name__)
@@ -16,18 +17,23 @@ jwt = JWTManager(app)
 
 # Connect the DynamoDB
 dynamodb = boto3.resource('dynamodb', region_name='us-east-1')
+#delete_table("UserData")
+#delete_table("Users")
 workouts_table = dynamodb.Table("UserData")
 users_table = dynamodb.Table("Users")
 
 # Mock workout data
 def generate_rep_quality(min_val, max_val, num_reps=50):
-    return [random.randint(min_val, max_val) for _ in range(num_reps)]
+    output=[]
+    for _ in range(num_reps):
+        output.append(random.randint(min_val, max_val))
+    return output
 
 # Function to calculate total workout metrics
 def calculate_lifetime_metrics(workouts):
     total_reps = sum(workout["rep_number"] for workout in workouts)
     total_workouts = len(workouts)
-    total_calories = round(total_reps * 0.1, 2)  # Estimate: 0.1 calories per rep
+    total_calories = round(float(total_reps) * 0.1, 2)  # Estimate: 0.1 calories per rep
 
     # Flatten all rep qualities into one list and compute average
     all_rep_qualities = [rep for workout in workouts for rep in workout["rep_quality"]]
@@ -37,14 +43,14 @@ def calculate_lifetime_metrics(workouts):
     best_workout = max(workouts, key=lambda w: sum(w["rep_quality"]) / len(w["rep_quality"]))
 
     return {
-        "total_reps": total_reps,
-        "total_workouts": total_workouts,
-        "total_calories_burned": total_calories,
-        "lifetime_avg_rep_quality": avg_rep_quality,
+        "total_reps": int(total_reps),
+        "total_workouts": int(total_workouts),
+        "total_calories_burned": float(total_calories),
+        "lifetime_avg_rep_quality": float(avg_rep_quality),
         "best_workout": {
             "date": best_workout["date"],
             "exercise": best_workout["exercise"],
-            "avg_rep_quality": round(sum(best_workout["rep_quality"]) / len(best_workout["rep_quality"]), 2)
+            "avg_rep_quality": float(round(sum(best_workout["rep_quality"]) / len(best_workout["rep_quality"]), 2))
         }
     }
 
@@ -108,7 +114,6 @@ def initialize_tables():
     create_user_table(dynamodb)
 
 
-
 @app.route("/api/signup", methods=["POST"])
 def signup():
     data = request.json
@@ -147,12 +152,9 @@ def login():
 @jwt_required()
 def get_history():
     # Return the total workout history to be displayed in the graphs and the 
-    print(f"Authorization header: {request.headers.get('Authorization')}")
     current_user = get_jwt_identity()  # Get the logged-in user's ID
-    print(current_user)
     workouts_table = dynamodb.Table("UserData")
 
-    
     # Query all workouts for the user, sorted by date
     response = workouts_table.query(
         KeyConditionExpression="UserID = :user",
@@ -160,12 +162,13 @@ def get_history():
         ScanIndexForward=True  # Sort workouts from oldest to newest
     )
     items = response.get("Items", [])
-    for item in items:
-        print(item)
-    if not response:
+    if not items:
         return jsonify({"error": "No workouts found for this user"}), 404
-    
-    return jsonify(response)
+    for workout in items:
+        workout['rep_quality'] = [float(val) for val in workout['rep_quality']]
+        workout['rep_number']=int(workout['rep_number'])
+
+    return jsonify(items)
 
 @app.route("/api/home", methods=["GET"])
 @jwt_required()
@@ -183,16 +186,21 @@ def get_home():
 
     if not items:
         return jsonify({"error": "No workouts found for this user"}), 404
-    # Process the rep_quality array
-    workout_qualities = calculate_rep_qualities(items[-1])
+    sorted_items = sorted(items, key=lambda x: x['date'], reverse=True)
+
+
+    # Process the rep_quality array of the most recent workout
+    most_recent_workout = sorted_items[0]
+    workout_qualities = calculate_rep_qualities(most_recent_workout)
         
     # Calculate lifetime metrics as you previously did
     metrics = calculate_lifetime_metrics(items)
-
-    return jsonify({
+    result={
         "lifetime_metrics": metrics,
         "last_workout": workout_qualities
-    })
+    }
+    print(result)
+    return jsonify(result)
 
 
 @app.route("/api/process", methods=["POST"])
