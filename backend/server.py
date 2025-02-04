@@ -43,14 +43,14 @@ def calculate_lifetime_metrics(workouts):
     best_workout = max(workouts, key=lambda w: sum(w["rep_quality"]) / len(w["rep_quality"]))
 
     return {
-        "total_reps": total_reps,
-        "total_workouts": total_workouts,
-        "total_calories_burned": total_calories,
-        "lifetime_avg_rep_quality": avg_rep_quality,
+        "total_reps": int(total_reps),
+        "total_workouts": int(total_workouts),
+        "total_calories_burned": float(total_calories),
+        "lifetime_avg_rep_quality": float(avg_rep_quality),
         "best_workout": {
             "date": best_workout["date"],
             "exercise": best_workout["exercise"],
-            "avg_rep_quality": round(sum(best_workout["rep_quality"]) / len(best_workout["rep_quality"]), 2)
+            "avg_rep_quality": float(round(sum(best_workout["rep_quality"]) / len(best_workout["rep_quality"]), 2))
         }
     }
 
@@ -114,7 +114,6 @@ def initialize_tables():
     create_user_table(dynamodb)
 
 
-
 @app.route("/api/signup", methods=["POST"])
 def signup():
     data = request.json
@@ -153,12 +152,9 @@ def login():
 @jwt_required()
 def get_history():
     # Return the total workout history to be displayed in the graphs and the 
-    print(f"Authorization header: {request.headers.get('Authorization')}")
     current_user = get_jwt_identity()  # Get the logged-in user's ID
-    print(current_user)
     workouts_table = dynamodb.Table("UserData")
 
-    
     # Query all workouts for the user, sorted by date
     response = workouts_table.query(
         KeyConditionExpression="UserID = :user",
@@ -166,13 +162,12 @@ def get_history():
         ScanIndexForward=True  # Sort workouts from oldest to newest
     )
     items = response.get("Items", [])
-    print(type(items))
     if not items:
         return jsonify({"error": "No workouts found for this user"}), 404
     for workout in items:
         workout['rep_quality'] = [float(val) for val in workout['rep_quality']]
         workout['rep_number']=int(workout['rep_number'])
-    print(items)
+
     return jsonify(items)
 
 @app.route("/api/home", methods=["GET"])
@@ -191,16 +186,21 @@ def get_home():
 
     if not items:
         return jsonify({"error": "No workouts found for this user"}), 404
-    # Process the rep_quality array
-    workout_qualities = calculate_rep_qualities(items[-1])
+    sorted_items = sorted(items, key=lambda x: x['date'], reverse=True)
+
+
+    # Process the rep_quality array of the most recent workout
+    most_recent_workout = sorted_items[0]
+    workout_qualities = calculate_rep_qualities(most_recent_workout)
         
     # Calculate lifetime metrics as you previously did
     metrics = calculate_lifetime_metrics(items)
-
-    return jsonify({
+    result={
         "lifetime_metrics": metrics,
         "last_workout": workout_qualities
-    })
+    }
+    print(result)
+    return jsonify(result)
 
 
 @app.route("/api/process", methods=["POST"])
