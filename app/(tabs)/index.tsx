@@ -46,7 +46,7 @@ const fetchWorkoutData = async (token: string | null): Promise<{
           },
         });
         const data = response.data;
-        console.log(data)
+
         return {
             lifetimeMetrics: data.lifetime_metrics,
             lastWorkout: data.last_workout
