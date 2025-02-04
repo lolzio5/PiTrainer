@@ -69,10 +69,10 @@ export default function History() {
     if (fetchedWorkouts) {
       // Sort workouts by date (latest first)
       const sortedWorkouts = fetchedWorkouts.sort(
-        (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+        (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
       );
       setWorkouts(sortedWorkouts);
-      setSelectedWorkout(sortedWorkouts[0]);
+      setSelectedWorkout(sortedWorkouts[sortedWorkouts.length-1]);
     } else {
       setError('Failed to load workouts.');
     }
