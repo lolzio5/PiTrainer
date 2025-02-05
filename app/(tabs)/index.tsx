@@ -12,13 +12,11 @@ interface WorkoutQuality {
   reps: number;
 }
 
-interface WorkoutData {
-  workoutQualities: WorkoutQuality[];
-}
+type WorkoutData = WorkoutQuality[];
 
 interface LifetimeMetrics {
-  total_workouts: number;
   total_reps: number;
+  total_workouts: number;
   total_calories_burned: number;
   lifetime_avg_rep_quality: number;
   best_workout: {
@@ -42,22 +40,17 @@ const fetchWorkoutData = async (token: string | null): Promise<{
   try {
     if (token) {
       // Use the token to access protected routes
-      await axios
-        .get('http://18.134.249.18:80/api/home', {
+       const response = await axios.get('http://18.134.249.18:80/api/home', {
           headers: {
             Authorization: `Bearer ${token}`,  // Send token in the request header
           },
-        })
-        .then((response) => {
-          const data = response.data
-          return {
-            lifetimeMetrics: data.lifetime_metrics,
-            lastWorkout: data.last_workout,
-          };
-        })
-        .catch((error) => {
-          console.error('Error fetching data', error);
         });
+        const data = response.data;
+
+        return {
+            lifetimeMetrics: data.lifetime_metrics,
+            lastWorkout: data.last_workout
+        };
     }
     return null;
   } catch (error) {
@@ -66,8 +59,8 @@ const fetchWorkoutData = async (token: string | null): Promise<{
   }
 };
 
-const processWorkoutData = (data: WorkoutData) => {
-  const chartData = data.workoutQualities.map((item) => ({
+const processWorkoutData = (workoutQualities: WorkoutData) => {
+  const chartData = workoutQualities.map((item) => ({
     name: item.quality,
     population: item.reps,
     color:
@@ -82,7 +75,7 @@ const processWorkoutData = (data: WorkoutData) => {
     legendFontSize: 14,
   }));
 
-  const totalReps = data.workoutQualities.reduce((sum, item) => sum + item.reps, 0);
+  const totalReps = workoutQualities.reduce((sum, item) => sum + item.reps, 0);
   return { chartData, totalReps };
 };
 
