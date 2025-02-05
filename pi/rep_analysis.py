@@ -6,9 +6,11 @@ import time
 from dataclasses import dataclass
 from enum import Enum
 import numpy as np
+from scipy import signal
 
 import matplotlib.pyplot as plt
 from filtering import MovingAverage
+from workout import Workout
 
 # import magnet as mag
 # import accelerometer
@@ -32,8 +34,11 @@ eg. SetData.accel = [
 @dataclass
 class SetData:
     accel: list[ list[ float, float, float] ]
+    vel : list[ list[float,float,float]]
+    pos : list[ list[float,float,float]]
     magn: list[ list[float, float, float] ]
-    sample_time: float
+    sample_time: list[ float]
+    ts : float
 
 
 class Exercise(Enum):
@@ -103,6 +108,46 @@ def get_SetData_pos_vel(data: SetData) -> list[ tuple[float, float, float] ]:
 
     return pos, vel
 
+def remove_repeats(peaks : list[float],peak_times: list[float],timeout : float):
+    for i in range(1,len(peak_times)-2):
+        if peak_times[i] - peak_times[i-1] < timeout:
+            peak_times.remove(peak_times[i])
+            peaks = np.delete(peaks,i)
+    
+    return peaks,peak_times
+
+def analyse_peak(data: SetData, exercise: Workout):
+    sel = exercise.select #Returns a tuple (velocity axis needed, mag axis needed)
+    vel_smoothed = MovingAverage(50)
+    vel_smoothed = [vel_smoothed.update(val[sel[0]]) for val in data.vel]#smoothed velocity 
+    pos_peaks = signal.find_peaks(vel_smoothed,0.125)[0]
+    neg_peaks = signal.find_peaks(np.multiply(vel_smoothed,-1),0.02)[0]
+    t_p = []
+    [t_p.append(data.sample_time[val]) for val in pos_peaks]
+    pos_peaks,t_p = remove_repeats(pos_peaks,t_p,1)
+    
+
+    t_n = []
+    [t_n.append(data.sample_time[val]) for val in neg_peaks]
+    neg_peaks,t_n = remove_repeats(neg_peaks,t_n,1)
+
+    print(f"LP = {len(pos_peaks)} LN = {len(neg_peaks)}")
+    if (len(pos_peaks) > len(neg_peaks)):
+        pos_peaks = pos_peaks[:len(neg_peaks)]
+    else:
+        neg_peaks = neg_peaks[:len(pos_peaks)]
+    
+    dists = []
+    for i in range(0,len(pos_peaks)):
+        dists.append(abs(vel_smoothed[neg_peaks[i]]) + abs(vel_smoothed[pos_peaks[i]]))
+
+    
+
+
+
+    
+
+    
 
 def analyse_set(data: SetData, exercise: Exercise, cal_rep: SetData):
     # check same length data
@@ -152,8 +197,37 @@ def analyse_set(data: SetData, exercise: Exercise, cal_rep: SetData):
 
     return dists_to_cal, set_pos, set_vel
 
+def integrate(data: list [list[float, float, float]],dt : float):
+    posx = [data[0][0]]
+    posy = [data[0][1]]
+    posz = [data[0][2]]
+    for i in range(1,len(data)):
+        posx.append(posx[-1] + (data[i][0] - data[i-1][0]) * dt)
+        posy.append(posy[-1] + (data[i][1]- data[i-1][0]) * dt)
+        posz.append(posz[-1] + (data[i][2] - data[i-1][0]) * dt)
+
+    output = []
+    [output.append([posx[i],posy[i],posz[i]]) for i in range(len(posx))]
+    return output
 
 def main() -> None:
+    file = open("rep_data_8.txt","r")
+    file_data = file.read().split("\n")
+    file.close()
+    file_data = [line.split(" ") for line in file_data] #Time | Vel xyz | Mag xyz
+    file_data.remove(file_data[-1])
+    vel = []
+    [vel.append([float(file_data[i][1]),float(file_data[i][2]),float(file_data[i][3])]) for i in range(len(file_data))]
+    pos = integrate(vel,1)
+    mag = []
+    [mag.append([float(file_data[i][4]),float(file_data[i][5]),float(file_data[i][6])]) for i in range(len(file_data))]
+    t = []
+    [t.append(float(file_data[i][0])) for i in range(len(file_data))]
+    data = SetData([],vel,pos,mag,t,0.01)
+    exercise = Workout("Rows")
+    analyse_peak(data,exercise)
+
+def main_H() -> None:
     ts = 0.01
     t = np.arange(0, 10, ts)
 
