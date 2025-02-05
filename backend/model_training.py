@@ -12,6 +12,14 @@ array_columns = ['accel_x', 'accel_y', 'accel_z', 'vel_x', 'vel_y', 'vel_z', 'po
 
 df = pd.read_csv("seated_cable_rows.csv", 
                  converters={col: ast.literal_eval for col in array_columns})
+labels = [
+    93, 78, 87, 78, 84, 85, 78, 89, 67, 89,
+    78, 56, 78, 89, 56, 57, 65, 78, 87, 78,
+    79, 78, 67, 65, 73, 86, 68, 68, 76, 54,
+    36, 78, 68, 64, 89, 87, 67, 67, 77, 68,
+    90, 87, 69, 87, 84, 84, 81, 59, 75, 76
+]
+df['quality_score'] = labels
 
 # Preprocessing
 X = df.drop('quality_score', axis=1)
