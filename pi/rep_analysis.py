@@ -116,7 +116,8 @@ def remove_repeats(peaks : list[float],peak_times: list[float],timeout : float):
     
     return peaks,peak_times
 
-def analyse_peak(data: SetData, exercise: Workout):
+# First part of code is peak analysis
+def sort_reps(data: SetData, exercise: Workout):
     sel = exercise.select #Returns a tuple (velocity axis needed, mag axis needed)
     vel_smoothed = MovingAverage(50)
     vel_smoothed = [vel_smoothed.update(val[sel[0]]) for val in data.vel]#smoothed velocity 
@@ -141,7 +142,51 @@ def analyse_peak(data: SetData, exercise: Workout):
     for i in range(0,len(pos_peaks)):
         dists.append(abs(vel_smoothed[neg_peaks[i]]) + abs(vel_smoothed[pos_peaks[i]]))
 
-    
+    #Analysis of the peaks has been cancelled :()
+    reps = []
+    for i in range(0,len(pos_peaks)):
+        reps.append(np.sort([pos_peaks[i],neg_peaks[i]]).tolist())
+    print(reps)
+
+
+    accel_temp = [isolate_axis(data.accel,0),isolate_axis(data.accel,1),isolate_axis(data.accel,2)]
+    vel_temp = [isolate_axis(data.vel,0),isolate_axis(data.vel,1),isolate_axis(data.vel,2)]
+    pos_temp = [isolate_axis(data.pos,0),isolate_axis(data.pos,1),isolate_axis(data.pos,2)]
+    mag_temp = [isolate_axis(data.magn,0),isolate_axis(data.magn,1),isolate_axis(data.magn,2)]
+
+    accelx = []
+    accely = []
+    accelz = []
+    velx = []
+    vely = []
+    velz = []
+    posx = []
+    posy = []
+    posz = []
+    magx = []
+    magy = []
+    magz = []
+
+    for i in reps:
+        L = i[0]
+        R = i[1]
+        accelx.append(accel_temp[0][L:R])
+        accely.append(accel_temp[1][L:R])
+        accelz.append(accel_temp[2][L:R])
+        velx.append(vel_temp[0][L:R])
+        vely.append(vel_temp[1][L:R])
+        velz.append(vel_temp[2][L:R])
+        posx.append(pos_temp[0][L:R])
+        posy.append(pos_temp[1][L:R])
+        posz.append(pos_temp[2][L:R])
+        magx.append(mag_temp[0][L:R])
+        magy.append(mag_temp[1][L:R])
+        magz.append(mag_temp[2][L:R])
+
+
+    return accelx,accely,accelz,velx,vely,velz,posx,posy,posz,magx,magy,magz
+
+
 
 
 
@@ -225,7 +270,7 @@ def main() -> None:
     [t.append(float(file_data[i][0])) for i in range(len(file_data))]
     data = SetData([],vel,pos,mag,t,0.01)
     exercise = Workout("Rows")
-    analyse_peak(data,exercise)
+    sort_reps(data,exercise)
 
 def main_H() -> None:
     ts = 0.01
