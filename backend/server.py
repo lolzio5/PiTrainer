@@ -8,6 +8,7 @@ from login import register_user, verify_user
 from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity
 import uuid
 import pickle
+import pandas as pd
 
 # ssh -i "C:\Users\themi\Downloads\piTrainerKey.pem" ubuntu@18.134.249.18
 app = Flask(__name__)
@@ -206,22 +207,50 @@ def process_data():
         # Parse incoming form data
         data = request.form.to_dict()
 
-        # Extract specific fields (optional for validation)
         workout_name = data.get('Name')
         rep_number = data.get('Rep Number')
-        timestamp = data.get('Timestamp')
-        accel = data.get('Acceleration 3D')
-        magn = data.get('Magnetometer 3D')
-        user = data.get('User')
-
-        # Process the data into the required format to get the prediction
-        data=[0,0]
+        email = data.get('Email')
+        formatted_data={
+            'accel_x': data.get('accel_x'),
+            'accel_y': data.get('accel_y'),
+            'accel_z': data.get('accel_z'),
+            'vel_x': data.get('vel_x'),
+            'vel_y': data.get('vel_y'),
+            'vel_z': data.get('vel_z'),
+            'pos_x': data.get('pos_x'),
+            'pos_y': data.get('pos_y'),
+            'pos_z': data.get('pos_z'),
+            'mag_x': data.get('mag_x'),
+            'mag_y': data.get('mag_y'),
+            'mag_z': data.get('mag_z')
+        }
+        data_to_predict=pd.Dataframe(formatted_data)
 
         # Debug print to verify data (can be removed in production)
-        print(f"Received data from user {user}: {data}")
+        print(f"Received data from user {email}: {data_to_predict}")
+        
+        # Predict the rep quality using saved model weights
         if workout_name=="Seated Cable Rows":
             model = pickle.load("seated_cable_rows.pkl")
+            rep_qualities=model.predict(data_to_predict)
+        elif workout_name=="Lat Pulldowns":
+            model = pickle.load("lat_pulldowns.pkl")
             rep_qualities=model.predict(data)
+
+        # Format as YYYY-MM-DD
+        current_date = datetime.now()
+        formatted_date = current_date.strftime('%Y-%m-%d')
+        
+        # Save the workout in the database
+        workout_item = {
+            "UserID": email,
+            "WorkoutID": str(uuid.uuid4()),
+            "date": formatted_date,
+            "exercise": workout_name,
+            "rep_number": rep_number,
+            "rep_quality": rep_qualities
+        }
+        workouts_table.put_item(Item=workout_item)
 
         # Respond with JSON
         return jsonify("success"), 200
