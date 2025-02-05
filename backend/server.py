@@ -7,7 +7,7 @@ import boto3
 from login import register_user, verify_user
 from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity
 import uuid
-import json
+import pickle
 
 # ssh -i "C:\Users\themi\Downloads\piTrainerKey.pem" ubuntu@18.134.249.18
 app = Flask(__name__)
@@ -82,7 +82,6 @@ def calculate_rep_qualities(last_workout):
         {"quality": "Poor", "reps": poor_count}
     ]
 
-
 def generate_mock_data(email):
     # Create mock workouts
     workouts = [
@@ -112,7 +111,6 @@ def generate_mock_data(email):
 def initialize_tables():
     create_database_table(dynamodb)
     create_user_table(dynamodb)
-
 
 @app.route("/api/signup", methods=["POST"])
 def signup():
@@ -202,12 +200,34 @@ def get_home():
     print(result)
     return jsonify(result)
 
-
 @app.route("/api/process", methods=["POST"])
-@jwt_required()
 def process_data():
-    # Process the data using Hector's code based on raw data
-    # Calculate the rep quality and store it in the database
+    try:
+        # Parse incoming form data
+        data = request.form.to_dict()
+
+        # Extract specific fields (optional for validation)
+        workout_name = data.get('Name')
+        rep_number = data.get('Rep Number')
+        timestamp = data.get('Timestamp')
+        accel = data.get('Acceleration 3D')
+        magn = data.get('Magnetometer 3D')
+        user = data.get('User')
+
+        # Process the data into the required format to get the prediction
+        data=[0,0]
+
+        # Debug print to verify data (can be removed in production)
+        print(f"Received data from user {user}: {data}")
+        if workout_name=="Seated Cable Rows":
+            model = pickle.load("seated_cable_rows.pkl")
+            rep_qualities=model.predict(data)
+
+        # Respond with JSON
+        return jsonify("success"), 200
+    except Exception as e:
+        print(f"Error processing data: {e}")
+        return jsonify({"error": "Failed to process data"}), 500
     return 0
 
 @app.route("/api/pipoll", methods=["GET"])

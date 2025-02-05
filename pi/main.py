@@ -34,9 +34,20 @@ def send_rep_data(workout_name, rep_nb, timestamp, accel, vel, pos, magn) -> str
         'Acceleration 3D': accel ,
         'Velocity 3D': vel ,
         'Position 3D': pos ,
-        'Magnetometer 3D': magn ,
+        'Magnetometer 3D': magn,
+        'User': "lv322"
     }
-    r = requests.post(url=BACKEND_URL, data=data)
+    r = requests.post(url=f"{BACKEND_URL}/process", data=data)
+    return r.text
+
+def send_rep(workout_name, rep_nb, timestamp) -> str:
+    data = {
+        'Name': workout_name ,
+        'Rep Number': rep_nb ,
+        'Timestamp': timestamp ,
+        'User': "lv322"
+    }
+    r = requests.post(url=f"{BACKEND_URL}/rep", data=data)
     return r.text
 
 
