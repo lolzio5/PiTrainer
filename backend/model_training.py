@@ -6,8 +6,12 @@ from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 from sklearn.model_selection import GridSearchCV
 import pickle
 import matplotlib.pyplot as plt
+import ast
 
-df = pd.read_csv("seated_cable_rows.csv")
+array_columns = ['accel_x', 'accel_y', 'accel_z', 'vel_x', 'vel_y', 'vel_z', 'pos_x', 'pos_y', 'pos_z', 'mag_x', 'mag_y', 'mag_z']
+
+df = pd.read_csv("seated_cable_rows.csv", 
+                 converters={col: ast.literal_eval for col in array_columns})
 
 # Preprocessing
 X = df.drop('quality_score', axis=1)
