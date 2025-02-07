@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
-from sklearn.tree import DecisionTreeRegressor, plot_tree
+from sklearn.ensemble import RandomForestRegressor
+from xgboost import XGBRegressor
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 from sklearn.model_selection import GridSearchCV
@@ -31,7 +32,7 @@ for column in df.columns:
     # Apply ast.literal_eval only to columns that contain list-like strings
     df[column] = df[column].apply(lambda x:ast.literal_eval(x))
     df[column] = df[column].apply(lambda x:ast.literal_eval(x) if type(x) == str else x)
-print(df['accel_z'])
+
 labels = [93, 78, 87, 78, 84, 85, 78, 89, 67, 89,
     78, 56, 78, 89, 56, 57, 65, 78, 87, 78,
     79, 78, 67, 65, 73, 86, 68, 68, 76, 54,
@@ -45,13 +46,14 @@ def extract_features(series):
     return pd.Series({
         'mean': np.mean(series),
         'std': np.std(series),
-        'max': np.max(series),
-        'min': np.min(series),
-        'range': np.ptp(series),  # Peak-to-peak (max - min)
         'median': np.median(series),
+        'min': np.min(series),
+        'max': np.max(series),
+        'iqr': np.percentile(series, 75) - np.percentile(series, 25),
         'skew': pd.Series(series).skew(),
         'kurtosis': pd.Series(series).kurtosis()
     })
+
 
 # Process sensor columns
 sensor_columns = ['accel_x', 'accel_y', 'accel_z', 
@@ -64,9 +66,6 @@ feature_df = pd.DataFrame()
 for col in sensor_columns:
     feature_df = pd.concat([feature_df, df[col].apply(extract_features).add_prefix(f"{col}_")], axis=1)
 
-# Add rep_nb (if needed)
-feature_df['rep_nb'] = df['rep_nb']
-
 # Add target
 feature_df['quality_score'] = df['quality_score']
 
@@ -75,24 +74,29 @@ feature_df['quality_score'] = df['quality_score']
 X = feature_df.drop('quality_score', axis=1)
 y = feature_df['quality_score']
 
+
 # Split data
 X_train, X_test, y_train, y_test = train_test_split(
     X, y, test_size=0.2, random_state=42
 )
 
 param_grid = {
-    'max_depth': [3, 5, 7, None],
-    'min_samples_split': [2, 5, 10, 20],
-    'min_samples_leaf': [1, 2, 5, 10]
+    'max_depth': [3, 5, 10, 20, 25, None],
 }
 
-grid_search = GridSearchCV(DecisionTreeRegressor(random_state=42),
-                          param_grid,
-                          cv=5,
-                          scoring='neg_mean_squared_error', verbose=1, error_score='raise')
-grid_search.fit(X_train, y_train)
+from sklearn.model_selection import RandomizedSearchCV
 
-best_tree = grid_search.best_estimator_
+random_search = GridSearchCV(
+    XGBRegressor(random_state=42),
+    param_grid=param_grid,
+    cv=2,  # More cross-validation folds
+    scoring='neg_mean_squared_error'
+)
+random_search.fit(X_train, y_train)
+
+
+
+best_tree = random_search.best_estimator_
 
 # Evaluate
 def evaluate_model(best_tree, X_test, y_test):
@@ -111,4 +115,5 @@ feature_importance.sort_values().plot(kind='barh')
 plt.title('Feature Importance')
 plt.show()
 
-pickle.dump(best_tree, "seated_cable_rows.pkl")
+with open("backend/seated_cable_rows.pkl", "wb") as file:
+    pickle.dump(best_tree, file)
