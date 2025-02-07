@@ -1,6 +1,6 @@
 import time
 
-class workout:
+class Workout:
     timeout : int
     threshold_v : tuple[float,float,float]
     threshold_m : tuple[int,int,int]
@@ -44,10 +44,12 @@ class workout:
             if (len(self.rep_time) == 0 or current_time - self.rep_time[-1] > self.timeout):
                 self.count += 1
                 self.rep_time.append(current_time)
-                return(True,self.count)#Returns true if rep is counted, and number of reps so far
+                return (True,self.count) #Returns true if rep is counted, and number of reps so far
             
-            else : return(False,None)#Returns false if rep is not counted, and None
-        else : return(False,None)
+            else : 
+                return (False,None) #Returns false if rep is not counted, and None
+        else : 
+            return (False,None)
     
     def get_data(self):
         return (self.workout,self.count,self.rep_time)#Reutrns workout name, count, and rep times

@@ -20,7 +20,7 @@ BACKEND_URL = "http://18.134.249.18:80/api"
 
 ## ---- UTILS FUNCTIONS ---- ##
 
-def poll_workout_state() -> str:
+def get_workout_state() -> str:
     r = requests.get(url=BACKEND_URL + "/pipoll")
     data = r.json()
     return data
@@ -85,7 +85,7 @@ def main() -> None:
         while True:
             # Get workout State
             if i % 1/ts == 0:
-                workout_state = poll_workout_state()
+                workout_state = get_workout_state()
 
             # Timeout check
             if time.time() - init_time > 300: # 5 min workout timeout
