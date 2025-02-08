@@ -6,7 +6,8 @@ import time
 from dataclasses import dataclass
 from enum import Enum
 import numpy as np
-from scipy import signal
+from scipy.signal import find_peaks
+from scipy.stats import linregress
 
 import matplotlib.pyplot as plt
 from filtering import MovingAverage
@@ -28,6 +29,14 @@ eg. SetData.accel = [
                         ...
                     ]
 
+"""
+
+"""
+NOTE:
+    THIS WAS MEANT AS A BACKUP FOR THE MACHINE LEARNING MODEL
+    RUNNING ON THE SERVER.
+
+    THIS CAN BE USED ON THE PI. but it currently IS NOT
 """
 
 ## CLASSES
@@ -82,22 +91,43 @@ def integrate(data: list [list[float, float, float]], dt: float=1):
     # return output
 
 
-def remove_repeat_peaks(peaks : list[float], peak_times: list[float],timeout : float):
+def package_ax_by_ax(data: SetData):
+    accel = [isolate_axis(data.accel, 0), isolate_axis(data.accel, 1), isolate_axis(data.accel, 2)]
+    vel = [isolate_axis(data.vel, 0), isolate_axis(data.vel, 1), isolate_axis(data.vel, 2)]
+    pos = [isolate_axis(data.pos, 0), isolate_axis(data.pos, 1), isolate_axis(data.pos, 2)]
+    mag = [isolate_axis(data.magn, 0), isolate_axis(data.magn, 1), isolate_axis(data.magn, 2)]
+
+    return accel, vel, pos, mag
+
+
+def package_ax_by_ax(points):
+    return [isolate_axis(points, 0), isolate_axis(points, 1), isolate_axis(points, 2)]
+
+
+def package_points(x, y, z):
+    return [ (x[i], y[i], z[i]) for i in range(len(x)) ] if len(x) == len(y) == len(z) else None
+
+
+# SHOULD BE FIXED
+def remove_repeat_peaks(peaks : list[float], peak_times: list[float], timeout : float):
+    new_peaks = []
+    new_peak_times = []
     for i in range(1,len(peak_times)-2):
-        if peak_times[i] - peak_times[i-1] < timeout:
-            peak_times.remove(peak_times[i])
-            peaks = np.delete(peaks,i)
+        if not (peak_times[i] - peak_times[i-1] < timeout):
+            new_peaks.append(peaks[i])
+            new_peak_times.append(peak_times[i])
     
-    return peaks,peak_times
+    return new_peaks, new_peak_times
+
+# CHECKKKKK / REWORK
+def thresholds_for_peaks(sig: list[float]):
+    naive_peaks, _ = find_peaks(sig)
+    mean_peak = np.mean([sig[naive_peaks[i]] for i in range(len(naive_peaks))])
+    print(f'mean_peak = {mean_peak}, nb_peaks = {len(naive_peaks)}')
+    return mean_peak
 
 
-def thresholds_for_peaks(sig: list[float]): ## CHECKKKKK
-    naive_peaks = signal.find_peaks(sig)
-    mean_peak = np.mean(naive_peaks)
-    return signal.find_peaks(sig, heaight=mean_peak)
-
-
-def average_line(points, num_points=120):
+def average_line(points, num_points=200):
     avx = MovingAverage(num_points)
     avy = MovingAverage(num_points)
     avz = MovingAverage(num_points)
@@ -112,16 +142,32 @@ def average_line(points, num_points=120):
      ]
 
 
+def zscore(data: list[float]) -> float:
+    # chanign to np arrays will allow for multi dimensional arrays
+    return (np.array(data) - np.mean(data)) / np.std(data)
+
+
+def get_average_rep(data: list[ list[ list[float, float, float] ] ]) -> list[ list[float, float, float]]:
+    # data is a list of reps ie. a list of list of points
+    # average each point in each rep
+    return [ (
+            np.mean([point[0] for point in rep]),
+            np.mean([point[1] for point in rep]),
+            np.mean([point[2] for point in rep]) ) 
+        for rep in data
+        ]
+    
+
 ## ACTUAL FUNCTIONS
 # First part of code is peak analysis for rep count
-def sort_reps_by_ax(data: SetData, sel: tuple[int, int], exercise_name: str, package_to_points:bool=False):
+def sort_reps_by_ax(data: SetData, sel: tuple[int, int], exercise_name: str):
     # (3D axis needed, mag axis needed)
 
     vel_smoothed = MovingAverage(50)
     vel_smoothed = [vel_smoothed.update(val[sel[0]]) for val in data.vel]#smoothed velocity 
 
-    pos_peaks = signal.find_peaks(vel_smoothed,0.125)[0]
-    neg_peaks = signal.find_peaks(np.multiply(vel_smoothed,-1),0.02)[0]
+    pos_peaks = find_peaks(vel_smoothed,0.125)[0]
+    neg_peaks = find_peaks(np.multiply(vel_smoothed,-1),0.02)[0]
 
     t_p = [data.sample_time[val] for val in pos_peaks]
     t_n = [data.sample_time[val] for val in neg_peaks]
@@ -189,20 +235,23 @@ def sort_reps_by_ax(data: SetData, sel: tuple[int, int], exercise_name: str, pac
     return accel, vel, pos, mag
 
 
-def sort_reps_by_pt(data: SetData, sel: tuple[int, int], exercise_name: str, package_to_points:bool=False):
+def sort_reps_by_pt(data: SetData, sel: tuple[int, int], exercise_name: str=""):
     # (3D axis needed, mag axis needed)
 
     vel_smoothed = MovingAverage(50)
-    vel_smoothed = [vel_smoothed.update(val[sel[0]]) for val in data.vel]#smoothed velocity 
+    vel_smoothed = [vel_smoothed.update(val[sel[0]]) for val in data.vel] #smoothed velocity)
 
-    # pthreshold = thresholds_for_peaks(vel_smoothed)
-    pthreshold = 0.125
+    pthreshold = thresholds_for_peaks(vel_smoothed)
+    # pthreshold = 0.125
 
-    # nthreshold = thresholds_for_peaks(np.multiply(vel_smoothed,-1))
-    nthreshold = 0.02
+    nthreshold = thresholds_for_peaks(np.multiply(vel_smoothed,-1))
+    # nthreshold = 0.02
 
-    pos_peaks = signal.find_peaks(vel_smoothed,pthreshold)[0]
-    neg_peaks = signal.find_peaks(np.multiply(vel_smoothed,-1),0.02)[0]
+    # pos_peaks = signal.find_peaks(vel_smoothed, threshold=pthreshold)[0]
+    # neg_peaks = signal.find_peaks(np.multiply(vel_smoothed,-1), threshold=nthreshold)[0]
+    pos_peaks = find_peaks(vel_smoothed, pthreshold)[0]
+    neg_peaks = find_peaks(np.multiply(vel_smoothed,-1), nthreshold)[0]
+    print(f"LP = {len(pos_peaks)} LN = {len(neg_peaks)}")
 
     t_p = [data.sample_time[val] for val in pos_peaks]
     t_n = [data.sample_time[val] for val in neg_peaks]
@@ -237,7 +286,6 @@ def sort_reps_by_pt(data: SetData, sel: tuple[int, int], exercise_name: str, pac
     return accel, vel, pos, mag
 
 
-
 def distance_analysis(pos: list[ list[float, float, float] ]):
     av_line = average_line(pos, num_points=100)
 
@@ -254,33 +302,52 @@ def distance_analysis(pos: list[ list[float, float, float] ]):
     return min_dists, sd, dist_range
 
 
-def get_pos_score(sd, dist_range, min_dists):
+def time_consistency_analysis(t):
+    # t is a list of times
+    # do linear regression and get an R^2 value
+    # use that as a score
+    _, _, r_value, _, _ = linregress(t, range(len(t)))
+    return 100*r_value**2
+
+# def get_pos_score(sd, dist_range, min_dists):
     # the tighter it is, the better
     # the shorter range of distances, the better
-    score = dist_range / sd 
-    # normalize to some known value, make integer
-    if score in range(80, 100):
-        # Perfect
-        ...
-    if score in range(70, 80):
-        # Great
-        ...
-    elif score in range(60, 70):
-        # Good
-        ...
-    elif score in range(50, 60):
-        # Fair
-        ...
-    elif score in range(40, 50):
-        # Needs improvement
-        ...
-    else:
-        # Fail!
-        ...
+    # score = dist_range / sd 
+    # # normalize to some known value, make integer
+    # if score in range(80, 100):
+    #     # Perfect
+    #     ...
+    # if score in range(70, 80):
+    #     # Great
+    #     ...
+    # elif score in range(60, 70):
+    #     # Good
+    #     ...
+    # elif score in range(50, 60):
+    #     # Fair
+    #     ...
+    # elif score in range(40, 50):
+    #     # Needs improvement
+    #     ...
+    # else:
+    #     # Fail!
+    #     ...
+    # return ...
 
-    return ...
+def get_pos_scores(pos_reps):
+    pos_scores = []
+    for pos_rep in pos_reps:
+        min_dists, sd, dist_range = distance_analysis(pos_rep)
+        score = zscore(min_dists)
+        pos_scores.append(score)
 
+    # normalize scores - 0 to 100
+    score_range = np.max(pos_scores) - np.min(pos_scores)
+    pos_scores = [ 100*(score - np.min(pos_scores)) // score_range for score in pos_scores]
 
+    return pos_scores
+
+## RETHINK
 def overall_score(vel_based_scores, pos_based_scores, mag_based_scores):
     final_score = []
     # CHECK SAME LENGTH
@@ -297,41 +364,26 @@ def overall_score(vel_based_scores, pos_based_scores, mag_based_scores):
         return "Invalid Input"
 
 
+## REWORK
 def analyse_set(data: SetData, exercise: Workout, exercise_name: str):
     accel = [isolate_axis(data.accel, 0), isolate_axis(data.accel, 1), isolate_axis(data.accel, 2)]
     vel = [isolate_axis(data.vel, 0), isolate_axis(data.vel, 1), isolate_axis(data.vel, 2)]
     pos = [isolate_axis(data.pos, 0), isolate_axis(data.pos, 1), isolate_axis(data.pos, 2)]
     mag = [isolate_axis(data.magn, 0), isolate_axis(data.magn, 1), isolate_axis(data.magn, 2)]
 
-    _, vel, pos, mag = sort_reps_by_pt(data, exercise.select, exercise_name)
+    accel, vel, pos, mag = sort_reps_by_pt(data, exercise.select, exercise_name)
 
 
     # accel_based_qualities = [] # probably not used
     vel_based_quality = []
-    pos_based_quality = []
     mag_based_quality = []
 
-    nb_reps = len(accel[0])
-    for i in range(nb_reps):
-        pos_metrics = distance_analysis(pos[i])
-        pos_based_quality.append(get_pos_score(pos_metrics))
-
+    pos_based_quality = get_pos_scores(pos)
+    # vel metrics
+    # mag metrics
 
     return overall_score(vel_based_quality, pos_based_quality, mag_based_quality)
         
-
-def package_ax_by_ax(data: SetData):
-    accel = [isolate_axis(data.accel, 0), isolate_axis(data.accel, 1), isolate_axis(data.accel, 2)]
-    vel = [isolate_axis(data.vel, 0), isolate_axis(data.vel, 1), isolate_axis(data.vel, 2)]
-    pos = [isolate_axis(data.pos, 0), isolate_axis(data.pos, 1), isolate_axis(data.pos, 2)]
-    mag = [isolate_axis(data.magn, 0), isolate_axis(data.magn, 1), isolate_axis(data.magn, 2)]
-
-    return accel, vel, pos, mag
-
-def package_ax_by_ax(points):
-    return [isolate_axis(points, 0), isolate_axis(points, 1), isolate_axis(points, 2)]
-
-
 
 #################################################
 
@@ -341,7 +393,8 @@ def main() -> None:
     file.close()
     file_data = [line.split(" ") for line in file_data] #Time | Vel xyz | Mag xyz
     file_data.remove(file_data[-1])
-    vel = [ [float(file_data[i][j]) for j in range(3)] for i in range(len(file_data))]
+    vel = [ [float(file_data[i][j]) for j in range(1, 4)] for i in range(len(file_data))]
+    # vel = []
     # [vel.append([float(file_data[i][1]),float(file_data[i][2]),float(file_data[i][3])]) for i in range(len(file_data))]
     pos = integrate(vel)
     mag = [ [float(file_data[i][j]) for j in range(4, 7)] for i in range(len(file_data))]
@@ -350,10 +403,9 @@ def main() -> None:
     # [t.append(float(file_data[i][0])) for i in range(len(file_data))]
     data = SetData([], vel, pos, mag, t, 0.01)
     exercise = Workout("Rows")
-    _ = sort_reps_by_pt(data, exercise.select, 'Rows')
+    accel_sorted, vel_sorted, pos_sorted, mag_sorted = sort_reps_by_pt(data, exercise.select)
 
     av = average_line(pos)
-
 
 
     f = plt.figure()
@@ -362,14 +414,25 @@ def main() -> None:
     # plt.plot(isolate_axis(vel, 0), isolate_axis(vel, 1), isolate_axis(vel, 2), '-b')
     plt.plot(isolate_axis(pos, 0), isolate_axis(pos, 1), isolate_axis(pos, 2), '-b')
     plt.plot(isolate_axis(av, 0), isolate_axis(av, 1), isolate_axis(av, 2), '-r')
-    
     plt.xlabel('x')
     plt.ylabel('y')
-    # plt.zlabel('z')
     plt.legend(['Vel', "Average Vel"])
-    plt.show()
 
-import matplotlib.pyplot as plt
+    f = plt.figure()
+    f.add_subplot(projection='3d')
+
+    for i in range(len(pos_sorted)):
+        plt.plot(isolate_axis(pos_sorted[i], 0), isolate_axis(pos_sorted[i], 1), isolate_axis(pos_sorted[i], 2), '-b')
+    
+    f = plt.figure()
+    plt.plot(isolate_axis(vel, 0), '-b')
+
+    try:
+        plt.show()
+        while(1):
+            pass
+    except KeyboardInterrupt:
+        plt.close()
 
 if __name__ == '__main__':
     main()
