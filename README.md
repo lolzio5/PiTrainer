@@ -8,9 +8,7 @@ Build the frontend app using `npm run android -- --tunnel` on Firebase. This wil
 
 **--> TO DO**
 
-- Implement a login page, before accessing the app, so the data changes depending on who the user is
-- Allow for account creation
-- All data stored on the server
+- Test control logic
 
 ## Backend
 
@@ -21,12 +19,9 @@ folder.
 
 **--> TO DO**
 
-- Create the API routes
-    - Workout History
-    - Current workout data processing
-    - User accounts login and authentification
-    - Total stats
-- Create MongoDB to store data as JSON
+- Train machine learning model for seated cable rows
+- Test all control logic API routes
+- Implement final processing route
 
 ## User Device
 
@@ -37,6 +32,5 @@ folder.
 
 **--> TO DO**
 
-- Connect via HTTP/MQTT to server and/or app
-- Implement rep counting locally (done), and package data
-- Develop and test algorithim to qualify data
+- Test rep counting
+- Package and send data correctly

@@ -193,7 +193,6 @@ def get_home():
         return jsonify({"error": "No workouts found for this user"}), 404
     sorted_items = sorted(items, key=lambda x: x['date'], reverse=True)
 
-
     # Process the rep_quality array of the most recent workout
     most_recent_workout = sorted_items[0]
     workout_qualities = calculate_rep_qualities(most_recent_workout)
@@ -204,7 +203,6 @@ def get_home():
         "lifetime_metrics": metrics,
         "last_workout": workout_qualities
     }
-
     return jsonify(result)
 
 @app.route("/api/start", methods=["POST"])
@@ -223,7 +221,8 @@ def start_workout():
         "pi_id":pi_id,
         "exercise": exercise,
         "reps": 0,
-        "workout": True
+        "workout": True,
+        "set": True
     }
     user_pi_id[pi_id]=current_user
     return jsonify(global_reps[pi_id]['reps'])
@@ -235,12 +234,22 @@ def get_reps():
     reps=global_reps[current_user]['reps']
     return jsonify(reps)
 
-@app.route("/api/set", methods=["GET"])
+@app.route("/api/end_set", methods=["GET"])
 @jwt_required()
 def count_set():
     current_user = get_jwt_identity()
     # Reset the reps
     global_reps[current_user]['reps']=0
+    global_reps[current_user]['set']=False
+    return jsonify(global_reps[current_user]['reps'])
+
+@app.route("/api/start_set", methods=["GET"])
+@jwt_required()
+def count_set():
+    current_user = get_jwt_identity()
+    # Reset the reps
+    global_reps[current_user]['reps']=0
+    global_reps[current_user]['set']=True
     return jsonify(global_reps[current_user]['reps'])
 
 @app.route("/api/end", methods=["GET"])
@@ -262,10 +271,12 @@ def pi_poll():
     data = request.json
     pi_id = data.get("pi_id")
     current_user=user_pi_id[pi_id]
-    if global_reps[current_user]['workout']:
+    if global_reps[current_user]['workout'] and global_reps[current_user]['set']:
         return jsonify(global_reps[current_user]['exercise'])
-    else:
-        return jsonify("No Workout")
+    elif global_reps[current_user]['set']==False:
+        return jsonify("Pseudo Idle")
+    elif global_reps[current_user]['workout']==False:
+        return jsonify("Idle")
 
 @app.route("/api/process", methods=["POST"])
 def process_data():
@@ -321,7 +332,7 @@ def process_data():
         # Delete user data when workout is completed
         user_pi_id.pop(pi_id)
         global_reps.pop(email)
-        
+
         # Respond with JSON
         return jsonify("success"), 200
     except Exception as e:
