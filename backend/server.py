@@ -7,7 +7,8 @@ import boto3
 from login import register_user, verify_user
 from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity
 import uuid
-import json
+import pickle
+import pandas as pd
 
 # ssh -i "C:\Users\themi\Downloads\piTrainerKey.pem" ubuntu@18.134.249.18
 app = Flask(__name__)
@@ -21,6 +22,10 @@ dynamodb = boto3.resource('dynamodb', region_name='us-east-1')
 #delete_table("Users")
 workouts_table = dynamodb.Table("UserData")
 users_table = dynamodb.Table("Users")
+
+# Global dictionary to store the reps of all users
+global_reps = {}
+user_pi_id={}
 
 # Mock workout data
 def generate_rep_quality(min_val, max_val, num_reps=50):
@@ -82,7 +87,6 @@ def calculate_rep_qualities(last_workout):
         {"quality": "Poor", "reps": poor_count}
     ]
 
-
 def generate_mock_data(email):
     # Create mock workouts
     workouts = [
@@ -113,19 +117,20 @@ def initialize_tables():
     create_database_table(dynamodb)
     create_user_table(dynamodb)
 
-
+# Routes for the mobile app
 @app.route("/api/signup", methods=["POST"])
 def signup():
     data = request.json
     email = data.get("email")
     password = data.get("password")
+    pi_id=data.get("pi_id")
 
     # Check if email is already registered
     response = users_table.get_item(Key={"UserID": email})
     if "Item" in response:
         return jsonify({"error": "Email already exists"}), 400
 
-    user_id=register_user(email, password, users_table)
+    user_id=register_user(email, password, pi_id, users_table)
     access_token = create_access_token(identity=email)
     generate_mock_data(email)
     print(f"Registered {email}!")
@@ -199,21 +204,129 @@ def get_home():
         "lifetime_metrics": metrics,
         "last_workout": workout_qualities
     }
-    print(result)
+
     return jsonify(result)
 
+@app.route("/api/start", methods=["POST"])
+@jwt_required()
+def start_workout():
+    data = request.json
+    current_user = get_jwt_identity() 
+    exercise = data.get('exercise_name')
+    database_response = users_table.query(
+        KeyConditionExpression="UserID = :user",
+        ExpressionAttributeValues={":user": current_user},
+    )
+    database_response = database_response.get("Items", [])
+    pi_id=database_response[0]['pi_id']
+    global_reps[current_user] = {
+        "pi_id":pi_id,
+        "exercise": exercise,
+        "reps": 0,
+        "workout": True
+    }
+    user_pi_id[pi_id]=current_user
+    return jsonify(global_reps[pi_id]['reps'])
+
+@app.route("/api/reps", methods=["GET"])
+@jwt_required()
+def get_reps():
+    current_user = get_jwt_identity()
+    reps=global_reps[current_user]['reps']
+    return jsonify(reps)
+
+@app.route("/api/set", methods=["GET"])
+@jwt_required()
+def count_set():
+    current_user = get_jwt_identity()
+    # Reset the reps
+    global_reps[current_user]['reps']=0
+    return jsonify(global_reps[current_user]['reps'])
+
+@app.route("/api/end", methods=["GET"])
+@jwt_required()
+def end_workout():
+    current_user = get_jwt_identity()
+    global_reps[current_user]['workout']=False
+
+# Routes for the Pi
+@app.route("/api/rep", methods=["POST"])
+def count_rep():
+    data = request.json
+    pi_id = data.get("pi_id")
+    current_user=user_pi_id[pi_id]
+    global_reps[current_user]['reps'] += 1
+
+@app.route("/api/pipoll", methods=["POST"])
+def pi_poll():
+    data = request.json
+    pi_id = data.get("pi_id")
+    current_user=user_pi_id[pi_id]
+    if global_reps[current_user]['workout']:
+        return jsonify(global_reps[current_user]['exercise'])
+    else:
+        return jsonify("No Workout")
 
 @app.route("/api/process", methods=["POST"])
-@jwt_required()
 def process_data():
-    # Process the data using Hector's code based on raw data
-    # Calculate the rep quality and store it in the database
-    return 0
+    try:
+        # Parse incoming form data
+        data = request.form.to_dict()
 
-@app.route("/api/pipoll", methods=["GET"])
-def pi_poll():
-    # Tell the Pi whether a workout has been started
-    return jsonify("Triceps Extension")
+        workout_name = data.get('Name')
+        rep_number = data.get('Rep Number')
+        email = data.get('Email')
+        pi_id=data.get('pi_id')
+        formatted_data={
+            'accel_x': data.get('accel_x'),
+            'accel_y': data.get('accel_y'),
+            'accel_z': data.get('accel_z'),
+            'vel_x': data.get('vel_x'),
+            'vel_y': data.get('vel_y'),
+            'vel_z': data.get('vel_z'),
+            'pos_x': data.get('pos_x'),
+            'pos_y': data.get('pos_y'),
+            'pos_z': data.get('pos_z'),
+            'mag_x': data.get('mag_x'),
+            'mag_y': data.get('mag_y'),
+            'mag_z': data.get('mag_z')
+        }
+        data_to_predict=pd.Dataframe(formatted_data)
+
+        # Debug print to verify data (can be removed in production)
+        print(f"Received data from user {email}: {data_to_predict}")
+        
+        # Predict the rep quality using saved model weights
+        if workout_name=="Seated Cable Rows":
+            model = pickle.load("seated_cable_rows.pkl")
+            rep_qualities=model.predict(data_to_predict)
+        elif workout_name=="Lat Pulldowns":
+            model = pickle.load("lat_pulldowns.pkl")
+            rep_qualities=model.predict(data)
+
+        # Format as YYYY-MM-DD
+        current_date = datetime.now()
+        formatted_date = current_date.strftime('%Y-%m-%d')
+        
+        # Save the workout in the database
+        workout_item = {
+            "UserID": email,
+            "WorkoutID": str(uuid.uuid4()),
+            "date": formatted_date,
+            "exercise": workout_name,
+            "rep_number": rep_number,
+            "rep_quality": rep_qualities
+        }
+        workouts_table.put_item(Item=workout_item)
+        # Delete user data when workout is completed
+        user_pi_id.pop(pi_id)
+        global_reps.pop(email)
+        
+        # Respond with JSON
+        return jsonify("success"), 200
+    except Exception as e:
+        print(f"Error processing data: {e}")
+        return jsonify({"error": "Failed to process data"}), 500
 
 if __name__ == "__main__":
     with app.app_context():

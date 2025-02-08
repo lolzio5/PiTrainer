@@ -9,11 +9,12 @@ def hash_password(password):
     return hashed.decode('utf-8')
 
 # Function to create a new user
-def register_user(email, password, users_table):
+def register_user(email, password, pi_id, users_table):
     hashed_pw = hash_password(password)
     users_table.put_item(Item={
         "UserID": email,
         "HashedPassword": hashed_pw,
+        "pi_id": pi_id,
         "CreatedAt": datetime.now().isoformat()
     })
     return email

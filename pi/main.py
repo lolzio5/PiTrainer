@@ -2,12 +2,14 @@ import numpy as np
 import time
 import json
 import requests
-import asyncio
 
 from filtering import MovingAverage, KalmanFilter3D
 import accelerometer
 import magnet
-from rep_analysis import SetData, Exercise, analyse_set, isolate_axis
+from workout import Workout
+from model_preprocessing import process_data_to_dict
+# from rep_analysis import SetData, Exercise, analyse_set, isolate_axis
+from rep_analysis import sort_reps_by_pt, SetData
 
 ## ---- CONSTANTS ---- ##
 workout_states = [
@@ -17,26 +19,34 @@ workout_states = [
 ]
 
 BACKEND_URL = "http://18.134.249.18:80/api"
+USER = "lv322"
 
 ## ---- UTILS FUNCTIONS ---- ##
 
-def poll_workout_state() -> str:
-    r = requests.get(url=BACKEND_URL + "/pipoll")
+def get_workout_state() -> str:
+    # r = requests.get(url=BACKEND_URL + "/pipoll" + f"?user={USER}")
+    r = requests.get(url=BACKEND_URL + "/pipoll" + f"/{USER}")
     data = r.json()
     return data
     
 
-def send_rep_data(workout_name, rep_nb, timestamp, accel, vel, pos, magn) -> str:
+def send_rep_data(data, current_rep_sent) -> str:
+    json_data = data
+    json_data['Rep Number'] = current_rep_sent
+    json_data['User'] = USER
+
+    r = requests.post(url=f"{BACKEND_URL}/process", data=json_data)
+    return r.text
+
+
+def send_rep_number(workout_name, rep_nb, timestamp) -> str:
     data = {
         'Name': workout_name ,
         'Rep Number': rep_nb ,
         'Timestamp': timestamp ,
-        'Acceleration 3D': accel ,
-        'Velocity 3D': vel ,
-        'Position 3D': pos ,
-        'Magnetometer 3D': magn ,
+        'User': USER
     }
-    r = requests.post(url=BACKEND_URL, data=data)
+    r = requests.post(url=f"{BACKEND_URL}/rep", data=data)
     return r.text
 
 
@@ -62,7 +72,11 @@ def main() -> None:
 
     mag_filtered:   list[ tuple[float, float, float ] ] = []
 
-    workout_state = workout_states[-1]
+    data = SetData()
+
+    current_workout_state = workout_states[-1]
+    previous_workout_state = workout_states[-1]
+    current_workout = Workout("Rows")
     current_rep = 0
 
     init_time = time.time()
@@ -74,65 +88,82 @@ def main() -> None:
         while True:
             # Get workout State
             if i % 1/ts == 0:
-                workout_state = poll_workout_state()
+                previous_workout_state = current_workout_state
+                current_workout_state = get_workout_state()
 
             # Timeout check
             if time.time() - init_time > 300: # 5 min workout timeout
-                workout_state = workout_states[-1]
-                accel_filtered.clear()
-                vel_filtered.clear()
-                pos_filtered.clear()
-                mag_filtered.clear()
+                current_workout_state = workout_states[-1]
+                data = SetData()
 
-            # Do nothing if in Idle mode, check every 0.5s
-            if workout_state == workout_states[-1]: # IF IDLE
-                time.sleep(0.5/ts)
-                continue
+            # STATE MACHINE
+            match current_workout_state:
+                case "Rows":
+                    if previous_workout_state != current_workout_state:
+                        current_workout = Workout("Rows")
 
-            accelx, accely, accelz = accelerometer.lis3dh_read_xyz()
-            if i % 2 == 0: # 50 Hz for ts = 0.01 / fs = 100Hz
-                magx, magy, magz = magnet.Mag_Read()
+                case "Tricep Extensions":
+                    if previous_workout_state != current_workout_state:
+                        current_workout = Workout("Tricep Extensions")
 
-            accelx_filter.step(accelx)
-            accely_filter.step(accely)
-            accelz_filter.step(accelz)
+                case "Idle":
+                    if previous_workout_state == current_workout_state:
+                        # poll every 0.5s
+                        time.sleep(0.5/ts)
+                        
+                    else:
+                        # Sort Reps
+                        accel_sorted, vel_sorted, pos_sorted, mag_sorted = sort_reps_by_pt(data, current_workout.select, current_workout_state)
+                            
+                        for i in range(current_workout.count):
+                            # Package Rep Data
+                            rep_features = process_data_to_dict( 
+                                        accel_sorted[i], vel_sorted[i], 
+                                        pos_sorted[i], mag_sorted[i])
+                            # Send rep data
+                            send_rep_data(rep_features, i+1)
 
-            accel_filtered.append((accelx_filter.acceleration, 
-                                   accely_filter.acceleration,
-                                   accelz_filter.acceleration))
-            
-            vel_filtered.append((accelx_filter.velocity, 
-                                   accely_filter.velocity,
-                                   accelz_filter.velocity))
-            
-            pos_filtered.append((accelx_filter.position, 
-                                   accely_filter.position,
-                                   accelz_filter.position)) 
-                               
-            mag_filtered.append((
-                magnetx_filter.update(magx),
-                magnety_filter.update(magy),
-                magnetz_filter.update(magz)
-            ))
+                case _: # default case is working out
+                    accelx, accely, accelz = accelerometer.lis3dh_read_xyz()
+                    if i % 2 == 0: # 50 Hz for ts = 0.01 / fs = 100Hz
+                        magx, magy, magz = magnet.Mag_Read()
+
+                    accelx_filter.step(accelx)
+                    accely_filter.step(accely)
+                    accelz_filter.step(accelz)
+
+                    data.accel.append((accelx_filter.acceleration, 
+                                        accely_filter.acceleration,
+                                        accelz_filter.acceleration))
+                    
+                    data.vel.append((accelx_filter.velocity, 
+                                        accely_filter.velocity,
+                                        accelz_filter.velocity))
+                    
+                    data.pos.append((accelx_filter.position, 
+                                        accely_filter.position,
+                                        accelz_filter.position)) 
+                                    
+                    data.magn.append((
+                        magnetx_filter.update(magx),
+                        magnety_filter.update(magy),
+                        magnetz_filter.update(magz)
+                    ))
+
+                    counted, rep_nb = current_workout.update([accelx_filter.velocity, accely_filter.velocity, accelz_filter.velocity],
+                                        [magnetx_filter.output, magnety_filter.output, magnetz_filter.output])
+                    
+                    if counted:
+                        send_rep_number(current_workout.workout, rep_nb, time.time())
 
         
-
-            # current_rep, rep_counted = ... # rep counter
-
-            # if rep_counted:
-            #     send_rep_data(workout_state, current_rep, 
-            #                   time.time(), accel_filtered, 
-            #                   vel_filtered, pos_filtered, 
-            #                   mag_filtered)
-                # current_rep = 0
-
             time.sleep(ts)
 
     except (KeyboardInterrupt, Exception) as e:
-        print(e)
-        print(accel_filtered)
-        print('\n\n\n\n')
-        print(mag_filtered)
+        # print(e)
+        # print(accel_filtered)
+        # print('\n\n\n\n')
+        # print(mag_filtered)
         print('Restarting...')
         # main()
         pass
