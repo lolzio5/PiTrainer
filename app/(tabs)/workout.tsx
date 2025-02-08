@@ -1,50 +1,99 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, Button, StyleSheet, Image } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
-
+import axios from 'axios';
+import { useAuth } from '../context';
 
 interface Exercise {
   name: string;
-  image: string;
-  reps: number;
-  sets: number;
+  image: any;
 }
-
 
 const exercises: Exercise[] = [
   {
-    name: 'Triceps Extensions',
-    image: require('../../assets/images/triceps_extension.jpg'), // Replace with a valid image URL or local asset
-    reps: 0,
-    sets: 0,
+    name: 'Seated Cable Rows',
+    image: require('../../assets/images/seated_cable_rows.png'),
   },
   {
     name: 'Lat Pulldowns',
-    image: require('../../assets/images/lat_pulldown.jpg'), // Replace with a valid image URL or local asset
-    reps: 0,
-    sets: 0,
+    image: require('../../assets/images/lat_pulldown.jpg'),
   },
 ];
 
 const Workout: React.FC = () => {
   const [selectedExercise, setSelectedExercise] = useState<Exercise>(exercises[0]);
+  const [repCount, setRepCount] = useState(0);
+  const [setCount, setSetCount] = useState(0);
+  const [workoutActive, setWorkoutActive] = useState(false);
+  const { token } = useAuth();
 
-  const incrementReps = () => {
-    setSelectedExercise((prev) => ({
-      ...prev,
-      reps: prev.reps + 1,
-    }));
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    if (workoutActive) {
+      interval = setInterval(fetchReps, 500); // Poll reps every 2 seconds
+    }
+    return () => clearInterval(interval);
+  }, [workoutActive]);
+
+  const startWorkout = async () => {
+    try {
+      await axios.post(
+        'http://18.134.249.18:80/api/start',
+        { exercise_name: selectedExercise.name },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      setWorkoutActive(true);
+      setSetCount(0);
+    } catch (error) {
+      console.error('Error starting workout:', error);
+    }
   };
 
-  const incrementSets = () => {
-    setSelectedExercise((prev) => ({
-      ...prev,
-      sets: prev.sets + 1,
-    }));
+  const fetchReps = async () => {
+    try {
+      const response = await axios.get('http://18.134.249.18:80/api/reps', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setRepCount(response.data);
+    } catch (error) {
+      console.error('Error fetching reps:', error);
+    }
   };
 
-  const endWorkout = () => {
-    console.log('Workout ended:', exercises);
+  const startSet = async () => {
+    try {
+      await axios.get('http://18.134.249.18:80/api/start_set', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setRepCount(0);
+      setSetCount((prev) => prev + 1);
+    } catch (error) {
+      console.error('Error starting set:', error);
+    }
+  };
+
+  const endSet = async () => {
+    try {
+      await axios.get('http://18.134.249.18:80/api/end_set', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setRepCount(0);
+    } catch (error) {
+      console.error('Error ending set:', error);
+    }
+  };
+
+  const endWorkout = async () => {
+    try {
+      await axios.get('http://18.134.249.18:80/api/end', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setWorkoutActive(false);
+      setRepCount(0);
+      setSetCount(0);
+    } catch (error) {
+      console.error('Error ending workout:', error);
+    }
   };
 
   return (
@@ -57,6 +106,7 @@ const Workout: React.FC = () => {
           if (selected) setSelectedExercise(selected);
         }}
         style={styles.picker}
+        enabled={!workoutActive}
       >
         {exercises.map((exercise) => (
           <Picker.Item key={exercise.name} label={exercise.name} value={exercise.name} />
@@ -64,20 +114,22 @@ const Workout: React.FC = () => {
       </Picker>
 
       <View style={styles.exerciseDetails}>
-        <Image
-          source={selectedExercise.image}
-          style={styles.exerciseImage}
-          resizeMode="contain"
-        />
+        <Image source={selectedExercise.image} style={styles.exerciseImage} resizeMode="contain" />
         <Text style={styles.exerciseName}>{selectedExercise.name}</Text>
-        <Text style={styles.exerciseStats}>
-          Reps: {selectedExercise.reps} | Sets: {selectedExercise.sets}
-        </Text>
-        <Button title="Increment Reps" onPress={incrementReps} />
-        <Button title="Increment Sets" onPress={incrementSets} />
-      </View>
+        <Text style={styles.exerciseStats}>Sets: {setCount}</Text>
 
-      <Button title="End Workout" onPress={endWorkout} />
+        <Text style={styles.repCount}>{repCount}</Text> {/* Large Rep Counter */}
+
+        {!workoutActive ? (
+          <Button title="Start Workout" onPress={startWorkout} />
+        ) : (
+          <>
+            <Button title="Start Set" onPress={startSet} />
+            <Button title="End Set" onPress={endSet} />
+            <Button title="End Workout" onPress={endWorkout} color="red" />
+          </>
+        )}
+      </View>
     </View>
   );
 };
@@ -97,20 +149,17 @@ const styles = StyleSheet.create({
   picker: {
     height: 60,
     width: '100%',
-    marginBottom: 5,
+    marginBottom: 10,
   },
   exerciseDetails: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 10,
-    marginTop: 0,
   },
   exerciseImage: {
     width: 300,
     height: 300,
-    marginBottom: 0,
-    marginTop: 0,
     borderRadius: 10,
   },
   exerciseName: {
@@ -121,6 +170,12 @@ const styles = StyleSheet.create({
   exerciseStats: {
     fontSize: 16,
     marginBottom: 20,
+  },
+  repCount: {
+    fontSize: 60, // Large Rep Counter
+    fontWeight: 'bold',
+    color: '#007BFF',
+    marginVertical: 20,
   },
 });
 
