@@ -265,9 +265,12 @@ def sort_reps_by_pt(data: SetData, sel: tuple[int, int], exercise_name: str=""):
 
 #Returns percnetage score of how consistent the distance travelled in reps is
 def distance_analysis(pos,reps) -> float:
-    dist = [pos[rep[1]] - pos[rep[0]] for rep in reps]
-    score = 1 - (np.var(dist) / (max(dist) - min(dist))) #Normalised variance
-    return score*100
+    dist = [abs(pos[rep[1]] - pos[rep[0]]) for rep in reps]
+    mean = np.mean(dist)
+    deviations = [abs(rep-mean) for rep in dist]
+    qual = [float((1/(1+dev)))*100 for dev in deviations]
+    set_score = 1 - (np.var(dist) / (max(dist) - min(dist))) #Normalised variance
+    return qual,(set_score*100)
 
 #Not sure how accurate this would be?
 def time_consistency_analysis(t,Y):
@@ -384,8 +387,9 @@ def main() -> None:
     rval = time_consistency_analysis(times_sorted, isolate_axis(vel_sorted, 0))
     print(rval)
 
-    dist_score = distance_analysis(isolate_axis(pos,0), reps)
-    print(dist_score)
+    dist_qual,set_score = distance_analysis(isolate_axis(pos,0), reps)
+    print(dist_qual)
+    print(set_score)
 
     #av = average_line(pos)
 
