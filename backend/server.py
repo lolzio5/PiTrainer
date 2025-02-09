@@ -236,7 +236,7 @@ def get_reps():
 
 @app.route("/api/end_set", methods=["GET"])
 @jwt_required()
-def count_set():
+def end_set():
     current_user = get_jwt_identity()
     # Reset the reps
     global_reps[current_user]['reps']=0
@@ -245,7 +245,7 @@ def count_set():
 
 @app.route("/api/start_set", methods=["GET"])
 @jwt_required()
-def count_set():
+def start_set():
     current_user = get_jwt_identity()
     # Reset the reps
     global_reps[current_user]['reps']=0
