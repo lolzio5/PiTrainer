@@ -17,9 +17,8 @@ const exercises: Exercise[] = [
   {
     name: 'Lat Pulldowns',
     image: require('../../assets/images/lat_pulldown.jpg'),
-  },
+  }
 ];
-
 const Workout: React.FC = () => {
   const [selectedExercise, setSelectedExercise] = useState<Exercise>(exercises[0]);
   const [repCount, setRepCount] = useState(0);

@@ -54,7 +54,7 @@ const fetchWorkoutData = async (token: string | null): Promise<{
     }
     return null;
   } catch (error) {
-    console.error('Error fetching workout data:', error);
+    //console.error('Error fetching workout data:', error);
     return null;
   }
 };
