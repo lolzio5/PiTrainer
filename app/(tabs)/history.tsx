@@ -1,8 +1,9 @@
-import React, { useEffect, useState, useCallback } from 'react';
-import { View, Text, FlatList, StyleSheet, Dimensions, TouchableOpacity } from 'react-native';
+import React, { useEffect, useState, useCallback,  } from 'react';
+import { View, Text, FlatList, StyleSheet, Dimensions, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { LineChart } from 'react-native-chart-kit';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '../context';
+import { router } from 'expo-router';
 import axios from 'axios';
 
 interface Workout {
@@ -48,7 +49,7 @@ const fetchHistoryData = async (token: string | null): Promise<Workout[] | null>
     }
     return null;
   } catch (error: any) {
-    console.error('Error fetching history data:', error);
+    //console.error('Error fetching history data:', error);
     return null;
   }
 };
@@ -74,7 +75,7 @@ export default function History() {
       setWorkouts(sortedWorkouts);
       setSelectedWorkout(sortedWorkouts[sortedWorkouts.length-1]);
     } else {
-      setError('Failed to load workouts.');
+      setError(null);
     }
     setLoading(false);
   }, [token]);
@@ -85,8 +86,9 @@ export default function History() {
 
   if (loading) {
     return (
-      <View style={styles.container}>
-        <Text>Loading...</Text>
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#fb8c00" />
+        <Text style={styles.loadingText}>Fetching your workout history...</Text>
       </View>
     );
   }
@@ -94,6 +96,20 @@ export default function History() {
     return (
       <View style={styles.container}>
         <Text>Error: {error}</Text>
+      </View>
+    );
+  }
+
+  if (workouts.length === 0) {
+    return (
+      <View style={styles.noWorkoutContainer}>
+        <Text style={styles.noWorkoutText}>No Workouts Found</Text>
+        <Text style={styles.noWorkoutSubtext}>
+          Start a new workout by navigating to the "Start Workout" tab!
+        </Text>
+        <TouchableOpacity style={styles.startWorkoutButton} onPress={() => router.push('./workout')}>
+          <Text style={styles.startWorkoutButtonText}>Start Workout</Text>
+        </TouchableOpacity>
       </View>
     );
   }
@@ -263,6 +279,18 @@ const styles = StyleSheet.create({
     paddingTop: 35,
     backgroundColor: '#f4f4f4',
   },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#f4f4f4',
+  },
+  loadingText: {
+    marginTop: 15,
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#555',
+  },
   chartContainer: {
     backgroundColor: '#fb8c00',
     padding: 0,
@@ -333,5 +361,35 @@ const styles = StyleSheet.create({
     top: '50%',
     left: -210,
     marginTop: -120,
+  },
+  noWorkoutContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    backgroundColor: '#f4f4f4',
+  },
+  noWorkoutText: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    textAlign: 'center',
+    marginBottom: 10,
+  },
+  noWorkoutSubtext: {
+    fontSize: 16,
+    textAlign: 'center',
+    marginBottom: 20,
+    color: '#666',
+  },
+  startWorkoutButton: {
+    backgroundColor: '#007BFF',
+    padding: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  startWorkoutButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
   },
 });

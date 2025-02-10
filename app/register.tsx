@@ -61,7 +61,7 @@ export default function RegisterScreen() {
           style={styles.input}
           value={pi_id}
           onChangeText={setPiId}
-          placeholder="Pi ID"
+          placeholder="π ID"
           placeholderTextColor="#888"
         />
 

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, Button, StyleSheet, Image } from 'react-native';
+import { View, Text, Button, StyleSheet, Image, TouchableOpacity } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
 import axios from 'axios';
 import { useAuth } from '../context';
@@ -17,23 +17,25 @@ const exercises: Exercise[] = [
   {
     name: 'Lat Pulldowns',
     image: require('../../assets/images/lat_pulldown.jpg'),
-  },
+  }
 ];
-
 const Workout: React.FC = () => {
   const [selectedExercise, setSelectedExercise] = useState<Exercise>(exercises[0]);
   const [repCount, setRepCount] = useState(0);
   const [setCount, setSetCount] = useState(0);
   const [workoutActive, setWorkoutActive] = useState(false);
+  const [setActive, setSetActive] = useState(false);
   const { token } = useAuth();
 
   useEffect(() => {
     let interval: NodeJS.Timeout;
     if (workoutActive) {
-      interval = setInterval(fetchReps, 500); // Poll reps every 2 seconds
+      if (setActive){
+        interval = setInterval(fetchReps, 500); // Poll reps every 500 milliseconds
+      }
     }
     return () => clearInterval(interval);
-  }, [workoutActive]);
+  }, [workoutActive, setActive]);
 
   const startWorkout = async () => {
     try {
@@ -44,8 +46,9 @@ const Workout: React.FC = () => {
       );
       setWorkoutActive(true);
       setSetCount(0);
+      setSetActive(true);
     } catch (error) {
-      console.error('Error starting workout:', error);
+     // console.error('Error starting workout:', error);
     }
   };
 
@@ -56,7 +59,7 @@ const Workout: React.FC = () => {
       });
       setRepCount(response.data);
     } catch (error) {
-      console.error('Error fetching reps:', error);
+     // console.error('Error fetching reps:', error);
     }
   };
 
@@ -67,8 +70,9 @@ const Workout: React.FC = () => {
       });
       setRepCount(0);
       setSetCount((prev) => prev + 1);
+      setSetActive(true);
     } catch (error) {
-      console.error('Error starting set:', error);
+     // console.error('Error starting set:', error);
     }
   };
 
@@ -78,8 +82,9 @@ const Workout: React.FC = () => {
         headers: { Authorization: `Bearer ${token}` },
       });
       setRepCount(0);
+      setSetActive(false);
     } catch (error) {
-      console.error('Error ending set:', error);
+    //  console.error('Error ending set:', error);
     }
   };
 
@@ -91,9 +96,42 @@ const Workout: React.FC = () => {
       setWorkoutActive(false);
       setRepCount(0);
       setSetCount(0);
+      setSetActive(false);
     } catch (error) {
-      console.error('Error ending workout:', error);
+    // console.error('Error ending workout:', error);
     }
+  };
+
+  const renderButtons = () => {
+    if (!workoutActive) {
+      return (<TouchableOpacity style={styles.buttonStart} onPress={startWorkout}>
+                <Text style={styles.buttonText}>Start Workout</Text>
+              </TouchableOpacity>);
+    }
+  
+    if (!setActive) {
+      return (
+        <>
+        <TouchableOpacity style={styles.buttonStart} onPress={startSet}>
+          <Text style={styles.buttonText}>Start Set</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.buttonEnd} onPress={endWorkout}>
+          <Text style={styles.buttonText}>End Workout</Text>
+        </TouchableOpacity>
+        </>
+      );
+    }
+  
+    return (
+      <>
+        <TouchableOpacity style={styles.buttonEnd} onPress={endSet}>
+          <Text style={styles.buttonText}>End Set</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.buttonEnd} onPress={endWorkout}>
+          <Text style={styles.buttonText}>End Workout</Text>
+        </TouchableOpacity>
+      </>
+    );
   };
 
   return (
@@ -117,18 +155,8 @@ const Workout: React.FC = () => {
         <Image source={selectedExercise.image} style={styles.exerciseImage} resizeMode="contain" />
         <Text style={styles.exerciseName}>{selectedExercise.name}</Text>
         <Text style={styles.exerciseStats}>Sets: {setCount}</Text>
-
         <Text style={styles.repCount}>{repCount}</Text> {/* Large Rep Counter */}
-
-        {!workoutActive ? (
-          <Button title="Start Workout" onPress={startWorkout} />
-        ) : (
-          <>
-            <Button title="Start Set" onPress={startSet} />
-            <Button title="End Set" onPress={endSet} />
-            <Button title="End Workout" onPress={endWorkout} color="red" />
-          </>
-        )}
+        {renderButtons()} {/* Render buttons based on workout state */}
       </View>
     </View>
   );
@@ -176,6 +204,25 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#007BFF',
     marginVertical: 20,
+  },
+  buttonStart: {
+    backgroundColor: '#007BFF',
+    padding: 14,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  buttonEnd: {
+    backgroundColor: '#D32F2F',
+    padding: 14,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  buttonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
   },
 });
 

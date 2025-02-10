@@ -9,6 +9,7 @@ from flask_jwt_extended import JWTManager, create_access_token, jwt_required, ge
 import uuid
 import pickle
 import pandas as pd
+import json
 
 # ssh -i "C:\Users\themi\Downloads\piTrainerKey.pem" ubuntu@18.134.249.18
 app = Flask(__name__)
@@ -132,7 +133,7 @@ def signup():
 
     user_id=register_user(email, password, pi_id, users_table)
     access_token = create_access_token(identity=email)
-    generate_mock_data(email)
+    #generate_mock_data(email)
     print(f"Registered {email}!")
     return jsonify({"access_token": access_token}), 200
 
@@ -225,7 +226,7 @@ def start_workout():
         "set": True
     }
     user_pi_id[pi_id]=current_user
-    return jsonify(global_reps[pi_id]['reps'])
+    return jsonify(global_reps[current_user]['reps'])
 
 @app.route("/api/reps", methods=["GET"])
 @jwt_required()
@@ -250,33 +251,38 @@ def start_set():
     # Reset the reps
     global_reps[current_user]['reps']=0
     global_reps[current_user]['set']=True
-    return jsonify(global_reps[current_user]['reps'])
+    return jsonify({"response": global_reps[current_user]['reps']})
 
 @app.route("/api/end", methods=["GET"])
 @jwt_required()
 def end_workout():
     current_user = get_jwt_identity()
     global_reps[current_user]['workout']=False
+    return jsonify("Workout Ended")
 
 # Routes for the Pi
 @app.route("/api/rep", methods=["POST"])
 def count_rep():
     data = request.json
     pi_id = data.get("pi_id")
-    current_user=user_pi_id[pi_id]
-    global_reps[current_user]['reps'] += 1
+    rep_count = data.get("reps")
+    current_user = user_pi_id.get(pi_id)
+    if current_user is None:
+        return jsonify({"response": "Idle"})  # If pi_id is not found, return "Idle"
+    global_reps[current_user]['reps'] = rep_count
+    return jsonify({"response": "success"})
 
 @app.route("/api/pipoll", methods=["POST"])
 def pi_poll():
-    data = request.json
-    pi_id = data.get("pi_id")
-    current_user=user_pi_id[pi_id]
+    pi_id = request.json
+    current_user = user_pi_id.get(pi_id)
+    if current_user is None:
+        return jsonify({"response": "Idle"})  # If pi_id is not found, return "Idle"
     if global_reps[current_user]['workout'] and global_reps[current_user]['set']:
-        return jsonify(global_reps[current_user]['exercise'])
+        return jsonify({"response":global_reps[current_user]['exercise']})
     elif global_reps[current_user]['set']==False:
-        return jsonify("Pseudo Idle")
-    elif global_reps[current_user]['workout']==False:
-        return jsonify("Idle")
+        return jsonify({"response":"Pseudo Idle"})
+    return jsonify({"response":"Idle"})
 
 @app.route("/api/process", methods=["POST"])
 def process_data():

@@ -54,7 +54,7 @@ const fetchWorkoutData = async (token: string | null): Promise<{
     }
     return null;
   } catch (error) {
-    console.error('Error fetching workout data:', error);
+    //console.error('Error fetching workout data:', error);
     return null;
   }
 };
@@ -80,7 +80,6 @@ const processWorkoutData = (workoutQualities: WorkoutData) => {
 };
 
 export default function Dashboard() {
-  const navigation = useNavigation<NavigationProp<RootStackParamList>>();
   const [workoutData, setWorkoutData] = useState<{
     chartData: { name: string; population: number; color: string; legendFontColor: string; legendFontSize: number }[] | null[];
     totalReps: number;
