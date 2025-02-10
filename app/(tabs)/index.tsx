@@ -80,7 +80,6 @@ const processWorkoutData = (workoutQualities: WorkoutData) => {
 };
 
 export default function Dashboard() {
-  const navigation = useNavigation<NavigationProp<RootStackParamList>>();
   const [workoutData, setWorkoutData] = useState<{
     chartData: { name: string; population: number; color: string; legendFontColor: string; legendFontSize: number }[] | null[];
     totalReps: number;

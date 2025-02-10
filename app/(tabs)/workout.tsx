@@ -25,12 +25,13 @@ const Workout: React.FC = () => {
   const [repCount, setRepCount] = useState(0);
   const [setCount, setSetCount] = useState(0);
   const [workoutActive, setWorkoutActive] = useState(false);
+  const [setActive, setSetActive] = useState(false);
   const { token } = useAuth();
 
   useEffect(() => {
     let interval: NodeJS.Timeout;
-    if (workoutActive) {
-      interval = setInterval(fetchReps, 500); // Poll reps every 2 seconds
+    if (workoutActive && setActive) {
+      interval = setInterval(fetchReps, 1000); // Poll reps every 1 seconds
     }
     return () => clearInterval(interval);
   }, [workoutActive]);
@@ -44,6 +45,7 @@ const Workout: React.FC = () => {
       );
       setWorkoutActive(true);
       setSetCount(0);
+      setSetActive(true);
     } catch (error) {
       console.error('Error starting workout:', error);
     }
@@ -67,6 +69,7 @@ const Workout: React.FC = () => {
       });
       setRepCount(0);
       setSetCount((prev) => prev + 1);
+      setSetActive(true);
     } catch (error) {
       console.error('Error starting set:', error);
     }
@@ -78,6 +81,7 @@ const Workout: React.FC = () => {
         headers: { Authorization: `Bearer ${token}` },
       });
       setRepCount(0);
+      setSetActive(false);
     } catch (error) {
       console.error('Error ending set:', error);
     }
@@ -91,9 +95,32 @@ const Workout: React.FC = () => {
       setWorkoutActive(false);
       setRepCount(0);
       setSetCount(0);
+      setSetActive(false);
     } catch (error) {
       console.error('Error ending workout:', error);
     }
+  };
+
+  const renderButtons = () => {
+    if (!workoutActive) {
+      return <Button title="Start Workout" onPress={startWorkout} />;
+    }
+  
+    if (!setActive) {
+      return (
+        <>
+          <Button title="Start Set" onPress={startSet} />
+          <Button title="End Workout" onPress={endWorkout} color="red" />
+        </>
+      );
+    }
+  
+    return (
+      <>
+        <Button title="End Set" onPress={endSet} />
+        <Button title="End Workout" onPress={endWorkout} color="red" />
+      </>
+    );
   };
 
   return (
@@ -117,18 +144,10 @@ const Workout: React.FC = () => {
         <Image source={selectedExercise.image} style={styles.exerciseImage} resizeMode="contain" />
         <Text style={styles.exerciseName}>{selectedExercise.name}</Text>
         <Text style={styles.exerciseStats}>Sets: {setCount}</Text>
-
         <Text style={styles.repCount}>{repCount}</Text> {/* Large Rep Counter */}
-
-        {!workoutActive ? (
-          <Button title="Start Workout" onPress={startWorkout} />
-        ) : (
-          <>
-            <Button title="Start Set" onPress={startSet} />
-            <Button title="End Set" onPress={endSet} />
-            <Button title="End Workout" onPress={endWorkout} color="red" />
-          </>
-        )}
+        <View>
+          {renderButtons()} {/* Render buttons based on workout state */}
+        </View>
       </View>
     </View>
   );
