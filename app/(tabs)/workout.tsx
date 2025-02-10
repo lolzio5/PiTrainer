@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, Button, StyleSheet, Image } from 'react-native';
+import { View, Text, Button, StyleSheet, Image, TouchableOpacity } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
 import axios from 'axios';
 import { useAuth } from '../context';
@@ -103,22 +103,32 @@ const Workout: React.FC = () => {
 
   const renderButtons = () => {
     if (!workoutActive) {
-      return <Button title="Start Workout" onPress={startWorkout} />;
+      return (<TouchableOpacity style={styles.buttonStart} onPress={startWorkout}>
+                <Text style={styles.buttonText}>Start Workout</Text>
+              </TouchableOpacity>);
     }
   
     if (!setActive) {
       return (
         <>
-          <Button title="Start Set" onPress={startSet} />
-          <Button title="End Workout" onPress={endWorkout} color="red" />
+        <TouchableOpacity style={styles.buttonStart} onPress={startSet}>
+          <Text style={styles.buttonText}>Start Set</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.buttonEnd} onPress={endWorkout}>
+          <Text style={styles.buttonText}>End Workout</Text>
+        </TouchableOpacity>
         </>
       );
     }
   
     return (
       <>
-        <Button title="End Set" onPress={endSet} />
-        <Button title="End Workout" onPress={endWorkout} color="red" />
+        <TouchableOpacity style={styles.buttonEnd} onPress={endSet}>
+          <Text style={styles.buttonText}>End Set</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.buttonEnd} onPress={endWorkout}>
+          <Text style={styles.buttonText}>End Workout</Text>
+        </TouchableOpacity>
       </>
     );
   };
@@ -145,9 +155,7 @@ const Workout: React.FC = () => {
         <Text style={styles.exerciseName}>{selectedExercise.name}</Text>
         <Text style={styles.exerciseStats}>Sets: {setCount}</Text>
         <Text style={styles.repCount}>{repCount}</Text> {/* Large Rep Counter */}
-        <View>
-          {renderButtons()} {/* Render buttons based on workout state */}
-        </View>
+        {renderButtons()} {/* Render buttons based on workout state */}
       </View>
     </View>
   );
@@ -195,6 +203,25 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#007BFF',
     marginVertical: 20,
+  },
+  buttonStart: {
+    backgroundColor: '#007BFF',
+    padding: 14,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  buttonEnd: {
+    backgroundColor: '#D32F2F',
+    padding: 14,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  buttonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
   },
 });
 

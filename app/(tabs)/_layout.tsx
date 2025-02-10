@@ -28,21 +28,21 @@ export default function TabLayout() {
           name="index"
           options={{
             title: 'Home',
-            tabBarIcon: ({ color }) => <IconSymbol size={28} name="house.fill" color={color} />,
+            tabBarIcon: ({ color }) => <IconSymbol size={28} name="house.fill" color='black' />,
           }}
         />
         <Tabs.Screen
           name="history"
           options={{
             title: 'Workout History',
-            tabBarIcon: ({ color }) => <IconSymbol size={28} name="history" color={color} />,
+            tabBarIcon: ({ color }) => <IconSymbol size={28} name="history" color='black' />,
           }}
         />
         <Tabs.Screen
             name="workout"
             options={{
               title: 'New Workout',
-              tabBarIcon: ({ color }) => <IconSymbol size={28} name="workout" color={color} />,
+              tabBarIcon: ({ color }) => <IconSymbol size={28} name="workout" color='black' />,
             }}
           />
       </Tabs>

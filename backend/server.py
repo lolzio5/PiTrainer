@@ -9,6 +9,7 @@ from flask_jwt_extended import JWTManager, create_access_token, jwt_required, ge
 import uuid
 import pickle
 import pandas as pd
+import json
 
 # ssh -i "C:\Users\themi\Downloads\piTrainerKey.pem" ubuntu@18.134.249.18
 app = Flask(__name__)
@@ -263,15 +264,19 @@ def end_workout():
 @app.route("/api/rep", methods=["POST"])
 def count_rep():
     data = request.json
-    pi_id = data["pi_id"]
-    current_user=user_pi_id[pi_id]
+    pi_id = data.get("pi_id")
+    current_user = user_pi_id.get(pi_id)
+    if current_user is None:
+        return jsonify({"response": "Idle"})  # If pi_id is not found, return "Idle"
     global_reps[current_user]['reps'] += 1
+    return jsonify({"response": "success"})
 
 @app.route("/api/pipoll", methods=["POST"])
 def pi_poll():
-    data = request.json
-    pi_id = data["pi_id"]
-    current_user=user_pi_id[pi_id]
+    pi_id = request.json
+    current_user = user_pi_id.get(pi_id)
+    if current_user is None:
+        return jsonify({"response": "Idle"})  # If pi_id is not found, return "Idle"
     if global_reps[current_user]['workout'] and global_reps[current_user]['set']:
         return jsonify({"response":global_reps[current_user]['exercise']})
     elif global_reps[current_user]['set']==False:
