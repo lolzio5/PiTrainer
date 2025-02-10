@@ -27,6 +27,7 @@ LIS3DH_REG_OUT_Z_H = 0x2D  # Z-axis MSB
 def lis3dh_init() -> None:
     print('Initialising LIS3DH...')
     # enable high resolution, xyz axes, and 100Hz sampling
+    global LIS3DH_ADDRESS
     try:
         bus.write_byte_data(LIS3DH_ADDRESS, LIS3DH_REG_CTRL_REG1, 0b0101_0111)
 

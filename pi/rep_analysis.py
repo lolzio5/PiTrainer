@@ -9,11 +9,11 @@ import numpy as np
 from scipy import signal
 from scipy.signal import find_peaks
 from scipy.stats import linregress
-import pandas as pd
+# import pandas as pd
 import ast
 import re
 
-import matplotlib.pyplot as plt
+# import matplotlib.pyplot as plt
 from filtering import MovingAverage
 from workout import Workout
 
@@ -61,13 +61,13 @@ def isolate_axis(points: list[list[float]], axis: int) -> list[float]:
 #CUMSUM DOESN'T WORK (See graphs below)
 def integrate(data: list [list[float, float, float]], dt: float=1):
     #Gonna leave plots in here so you can see the issue
-    plt.figure()
-    intx = np.cumsum(isolate_axis(data, 0)) * dt
-    inty = np.cumsum(isolate_axis(data, 1)) * dt
-    intz = np.cumsum(isolate_axis(data, 2)) * dt
-    plt.plot(intx)
-    plt.title("Cum Sum")
-    # return [(float(intx[i]), float(inty[i]), float(intz[i])) for i in range(len(intx))]
+    # plt.figure()
+    # intx = np.cumsum(isolate_axis(data, 0)) * dt
+    # inty = np.cumsum(isolate_axis(data, 1)) * dt
+    # intz = np.cumsum(isolate_axis(data, 2)) * dt
+    # plt.plot(intx)
+    # plt.title("Cum Sum")
+    # # return [(float(intx[i]), float(inty[i]), float(intz[i])) for i in range(len(intx))]
 
     posx = [data[0][0]]
     posy = [data[0][1]]
@@ -77,11 +77,11 @@ def integrate(data: list [list[float, float, float]], dt: float=1):
         posy.append(posy[-1] + (data[i][1]- data[i-1][0]) * dt)
         posz.append(posz[-1] + (data[i][2] - data[i-1][0]) * dt)
 
-    plt.figure()
-    plt.plot(posx)
-    plt.title("Manual Integration")
-    plt.show()
-    plt.close()#Put a breakpoint here to see graphs
+    # plt.figure()
+    # plt.plot(posx)
+    # plt.title("Manual Integration")
+    # plt.show()
+    # plt.close()#Put a breakpoint here to see graphs
     output = []
     [output.append([posx[i],posy[i],posz[i]]) for i in range(len(posx))]
     return output
@@ -153,7 +153,7 @@ def sort_reps_by_ax(data: SetData, sel: tuple[int, int], exercise_name: str):
     reps = []
     for i in range(0,len(pos_peaks)):
         reps.append(np.sort([pos_peaks[i],neg_peaks[i]]).tolist())
-    print(reps)
+    # print(reps)
     
     accel_temp, vel_temp, pos_temp, mag_temp = package_ax_by_ax(data)
     accel = [[], [], []]
@@ -225,6 +225,8 @@ def sort_reps_by_pt(data: SetData, sel: tuple[int, int], exercise_name: str=""):
     pos_peaks = find_peaks(vel_smoothed, pthreshold)[0]
     neg_peaks = find_peaks(np.multiply(vel_smoothed,-1), nthreshold)[0]
     print(f"Before removal : LP = {len(pos_peaks)} LN = {len(neg_peaks)}")
+    print(f'sample_time_len = {len(data.sample_time)}')
+    print(f'pos_peaks = {pos_peaks} and neg_peaks = {neg_peaks}')
 
     t_p = [data.sample_time[val] for val in pos_peaks]
     t_n = [data.sample_time[val] for val in neg_peaks]
@@ -243,7 +245,7 @@ def sort_reps_by_pt(data: SetData, sel: tuple[int, int], exercise_name: str=""):
     reps = []
     for i in range(0,len(pos_peaks)):
         reps.append(np.sort([pos_peaks[i],neg_peaks[i]]).tolist())
-    print(reps)
+    # print(reps)
     
     match exercise_name:
         case "Rows":
@@ -309,27 +311,27 @@ def time_consistency_analysis(t,Y):
     # return ...
 
 ## REWORK
-def analyse_set(data: SetData, exercise: Workout, exercise_name: str):
-    accel = [isolate_axis(data.accel, 0), isolate_axis(data.accel, 1), isolate_axis(data.accel, 2)]
-    vel = [isolate_axis(data.vel, 0), isolate_axis(data.vel, 1), isolate_axis(data.vel, 2)]
-    pos = [isolate_axis(data.pos, 0), isolate_axis(data.pos, 1), isolate_axis(data.pos, 2)]
-    mag = [isolate_axis(data.magn, 0), isolate_axis(data.magn, 1), isolate_axis(data.magn, 2)]
+# def analyse_set(data: SetData, exercise: Workout, exercise_name: str):
+#     accel = [isolate_axis(data.accel, 0), isolate_axis(data.accel, 1), isolate_axis(data.accel, 2)]
+#     vel = [isolate_axis(data.vel, 0), isolate_axis(data.vel, 1), isolate_axis(data.vel, 2)]
+#     pos = [isolate_axis(data.pos, 0), isolate_axis(data.pos, 1), isolate_axis(data.pos, 2)]
+#     mag = [isolate_axis(data.magn, 0), isolate_axis(data.magn, 1), isolate_axis(data.magn, 2)]
 
-    accel, vel, pos, mag = sort_reps_by_pt(data, exercise.select, exercise_name)
+#     accel, vel, pos, mag = sort_reps_by_pt(data, exercise.select, exercise_name)
 
 
-    # accel_based_qualities = [] # probably not used
-    vel_based_quality = []
-    mag_based_quality = []
+#     # accel_based_qualities = [] # probably not used
+#     vel_based_quality = []
+#     mag_based_quality = []
 
-    pos_based_quality = get_pos_scores(pos)
-    # vel metrics
-    # mag metrics
+#     pos_based_quality = get_pos_scores(pos)
+#     # vel metrics
+#     # mag metrics
 
-    return overall_score(vel_based_quality, pos_based_quality, mag_based_quality)
+#     return overall_score(vel_based_quality, pos_based_quality, mag_based_quality)
 
 def parse_list_string(list_string):
-        return ast.literal_eval(list_string)    
+    return ast.literal_eval(list_string)    
 
 #################################################
 
@@ -421,40 +423,40 @@ def main() -> None:
     #     plt.close()
 
 #A main to test the 50 rep data
-def main_50() -> None:
-    array_columns = ['rep_nb','accel_x', 'accel_y', 'accel_z', 'vel_x', 'vel_y', 'vel_z', 'pos_x', 'pos_y', 'pos_z', 'mag_x', 'mag_y', 'mag_z']
+# def main_50() -> None:
+#     array_columns = ['rep_nb','accel_x', 'accel_y', 'accel_z', 'vel_x', 'vel_y', 'vel_z', 'pos_x', 'pos_y', 'pos_z', 'mag_x', 'mag_y', 'mag_z']
 
-    # Open the file and read the lines
-    with open("seated_cable_rows.csv", "r") as file:
-        lines = file.readlines()
+#     # Open the file and read the lines
+#     with open("seated_cable_rows.csv", "r") as file:
+#         lines = file.readlines()
 
-    # Manually process rows
-    data = []
-    for line in lines[1:]:
-        # Strip newline and split by commas using the regular expression
-        parts = re.split(r',(?=(?:[^"]*"[^"]*")*[^"]*$)', line.strip())
-        data.append(parts)
+#     # Manually process rows
+#     data = []
+#     for line in lines[1:]:
+#         # Strip newline and split by commas using the regular expression
+#         parts = re.split(r',(?=(?:[^"]*"[^"]*")*[^"]*$)', line.strip())
+#         data.append(parts)
 
-    # Convert to DataFrame
-    df = pd.DataFrame(data)
-    df.columns = array_columns
+#     # Convert to DataFrame
+#     df = pd.DataFrame(data)
+#     df.columns = array_columns
 
-    for column in df.columns:
-        # Apply ast.literal_eval only to columns that contain list-like strings
-        df[column] = df[column].apply(lambda x:ast.literal_eval(x))
-        df[column] = df[column].apply(lambda x:ast.literal_eval(x) if type(x) == str else x)
+#     for column in df.columns:
+#         # Apply ast.literal_eval only to columns that contain list-like strings
+#         df[column] = df[column].apply(lambda x:ast.literal_eval(x))
+#         df[column] = df[column].apply(lambda x:ast.literal_eval(x) if type(x) == str else x)
 
-    labels = [93, 78, 87, 78, 84, 85, 78, 89, 67, 89,
-        78, 56, 78, 89, 56, 57, 65, 78, 87, 78,
-        79, 78, 67, 65, 73, 86, 68, 68, 76, 54,
-        36, 78, 68, 64, 89, 87, 67, 67, 77, 68,
-        90, 87, 69, 87, 84, 84, 81, 59, 75, 76
-    ]
-    df['quality_score'] = labels
-    workout_data = join_rep_data(df)
-    workout = Workout("Rows")
-    accel_sorted, vel_sorted, pos_sorted, mag_sorted = sort_reps_by_pt(workout_data, workout.select, workout.workout)
-    print(len(pos_sorted))
+#     labels = [93, 78, 87, 78, 84, 85, 78, 89, 67, 89,
+#         78, 56, 78, 89, 56, 57, 65, 78, 87, 78,
+#         79, 78, 67, 65, 73, 86, 68, 68, 76, 54,
+#         36, 78, 68, 64, 89, 87, 67, 67, 77, 68,
+#         90, 87, 69, 87, 84, 84, 81, 59, 75, 76
+#     ]
+#     df['quality_score'] = labels
+#     workout_data = join_rep_data(df)
+#     workout = Workout("Rows")
+#     accel_sorted, vel_sorted, pos_sorted, mag_sorted = sort_reps_by_pt(workout_data, workout.select, workout.workout)
+#     print(len(pos_sorted))
 
 if __name__ == '__main__':
     main()
