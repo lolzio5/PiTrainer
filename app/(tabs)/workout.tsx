@@ -30,7 +30,7 @@ const Workout: React.FC = () => {
   useEffect(() => {
     let interval: NodeJS.Timeout;
     if (workoutActive && setActive) {
-      interval = setInterval(fetchReps, 1000); // Poll reps every 1 seconds
+      interval = setInterval(fetchReps, 500); // Poll reps every 500 milliseconds
     }
     return () => clearInterval(interval);
   }, [workoutActive]);
@@ -46,7 +46,7 @@ const Workout: React.FC = () => {
       setSetCount(0);
       setSetActive(true);
     } catch (error) {
-      console.error('Error starting workout:', error);
+     // console.error('Error starting workout:', error);
     }
   };
 
@@ -57,7 +57,7 @@ const Workout: React.FC = () => {
       });
       setRepCount(response.data);
     } catch (error) {
-      console.error('Error fetching reps:', error);
+     // console.error('Error fetching reps:', error);
     }
   };
 
@@ -70,7 +70,7 @@ const Workout: React.FC = () => {
       setSetCount((prev) => prev + 1);
       setSetActive(true);
     } catch (error) {
-      console.error('Error starting set:', error);
+     // console.error('Error starting set:', error);
     }
   };
 
@@ -82,7 +82,7 @@ const Workout: React.FC = () => {
       setRepCount(0);
       setSetActive(false);
     } catch (error) {
-      console.error('Error ending set:', error);
+    //  console.error('Error ending set:', error);
     }
   };
 
@@ -96,7 +96,7 @@ const Workout: React.FC = () => {
       setSetCount(0);
       setSetActive(false);
     } catch (error) {
-      console.error('Error ending workout:', error);
+    // console.error('Error ending workout:', error);
     }
   };
 
