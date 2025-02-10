@@ -29,11 +29,13 @@ const Workout: React.FC = () => {
 
   useEffect(() => {
     let interval: NodeJS.Timeout;
-    if (workoutActive && setActive) {
-      interval = setInterval(fetchReps, 500); // Poll reps every 500 milliseconds
+    if (workoutActive) {
+      if (setActive){
+        interval = setInterval(fetchReps, 500); // Poll reps every 500 milliseconds
+      }
     }
     return () => clearInterval(interval);
-  }, [workoutActive]);
+  }, [workoutActive, setActive]);
 
   const startWorkout = async () => {
     try {

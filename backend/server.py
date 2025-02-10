@@ -265,10 +265,11 @@ def end_workout():
 def count_rep():
     data = request.json
     pi_id = data.get("pi_id")
+    rep_count = data.get("reps")
     current_user = user_pi_id.get(pi_id)
     if current_user is None:
         return jsonify({"response": "Idle"})  # If pi_id is not found, return "Idle"
-    global_reps[current_user]['reps'] += 1
+    global_reps[current_user]['reps'] = rep_count
     return jsonify({"response": "success"})
 
 @app.route("/api/pipoll", methods=["POST"])
