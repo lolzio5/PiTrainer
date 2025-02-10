@@ -68,7 +68,7 @@ def main() -> None:
     accelerometer.lis3dh_init()
     magnet.Mag_init()
 
-    data = SetData([], [], [], [], [], ts)
+    data = SetData([], [], [], [], [], [], ts)
 
     current_workout_state = workout_states[-1]
     previous_workout_state = workout_states[-1]
@@ -95,7 +95,7 @@ def main() -> None:
             # # Timeout check
             # if time.time() - init_time > 300: # 5 min workout timeout
             #     current_workout_state = workout_states[-1]
-            #     data = SetData([], [], [], [], [], ts)
+            #     data = SetData([], [], [], [], [], [], ts)
 
             # STATE MACHINE
             match current_workout_state:
@@ -109,7 +109,7 @@ def main() -> None:
                         magnetx_filter.clear()
                         magnety_filter.clear()
                         magnetz_filter.clear()
-                        data = SetData([], [], [], [], [], ts)
+                        data = SetData([], [], [], [], [], [], ts)
 
                 case "Lat Pulldowns":
                     if previous_workout_state != current_workout_state:
@@ -121,22 +121,14 @@ def main() -> None:
                         magnetx_filter.clear()
                         magnety_filter.clear()
                         magnetz_filter.clear()
-                        data = SetData([], [], [], [], [], ts)
+                        data = SetData([], [], [], [], [], [], ts)
 
                 case "Idle":
                     if previous_workout_state == current_workout_state:
                         continue
                     else:
                         # Sort Reps
-                        accel_sorted, vel_sorted, pos_sorted, mag_sorted = sort_reps_by_pt(data, current_workout.select, current_workout_state)
-                            
-                        for i in range(current_workout.count):
-                            # Package Rep Data
-                            rep_features = process_data_to_dict( 
-                                        accel_sorted[i], vel_sorted[i], 
-                                        pos_sorted[i], mag_sorted[i])
-                            # Send rep data
-                            send_rep_data(rep_features, i+1)
+                        ...
 
                         accelx_filter.clear()
                         accely_filter.clear()
@@ -144,7 +136,7 @@ def main() -> None:
                         magnetx_filter.clear()
                         magnety_filter.clear()
                         magnetz_filter.clear()
-                        data = SetData([], [], [], [], [], ts)
+                        data = SetData([], [], [], [], [], [], ts)
 
                 case "Pseudo Idle":
                     continue
@@ -182,12 +174,14 @@ def main() -> None:
                 magnetz_filter.update(magz)
             ))
 
+            data.sample_times.append(time.time())
+
             counted, rep_nb = current_workout.update([accelx_filter.velocity, accely_filter.velocity, accelz_filter.velocity],
                                 [magnetx_filter.output, magnety_filter.output, magnetz_filter.output])
             
             if counted:
                 send_rep_number(current_workout.workout, rep_nb)
-                data.sample_time.append(time.time())
+                data.rep_indexes.append(len(data.sample_times)-1)
                 print(f'Rep {rep_nb} counted!')
 
     except (KeyboardInterrupt, Exception) as e:
@@ -200,5 +194,5 @@ def main() -> None:
         pass
 
 
-if __name__ == '__main__':
+if __name__ == '_main_':
     main()
