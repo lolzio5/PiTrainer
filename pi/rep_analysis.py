@@ -57,7 +57,7 @@ class SetData:
     pos : list[ list[float,float,float]]
     magn: list[ list[float, float, float] ]
     sample_times: list[ float]
-    rep_indexes : list[int]
+    rep_indices : list[int]
     ts : float
 
 ## UTILS FUNCTIONS
@@ -65,7 +65,7 @@ def isolate_axis(points: list[list[float]], axis: int) -> list[float]:
     return [point[axis] for point in points]
 
 def join_axis(x : list[float] , y : list[float] , z : list[float]) -> list[list[float]]:
-    return [ [x[i], y[i], z[i]] for i in range(len(x)-1)]
+    return [ [x[i], y[i], z[i]] for i in range(len(x))]
 
 
 def zscore_to_percentile(score: float) -> float:
@@ -76,10 +76,14 @@ def find_highest_peak(sig : list[float], offset : int):
     highest = np.argmax(peak_props["peak_heights"])
     return int(tmp_peaks[highest] + offset)
 
+
+## ANALYSIS FUNCTIONS
 def sort_reps(data: SetData, reps_live : list[int] , sel):
     vel_smoothed = MovingAverage(50)
-    vel_smoothed = [vel_smoothed.update(val[sel[0]]) for val in data.vel] #smoothed velocity)
+    vel_smoothed = [vel_smoothed.update(val[sel[0]]) for val in data.vel] #smoothed velocity
+    # print(f'vel_smoothed shape: {np.shape(vel_smoothed)}')
     pos_peaks = []
+    reps_live = data.rep_indices
     for i in range(0,len(reps_live)-2):
         current = int(reps_live[i])
         next = int(reps_live[i+1])
@@ -88,18 +92,19 @@ def sort_reps(data: SetData, reps_live : list[int] , sel):
     return pos_peaks
 
 # VERIFY THIS
-def separate_reps(data: SetData):
-    indexes = data.rep_indexes
+def separate_reps(data: SetData, sel):
+    data.rep_indices = sort_reps(data, data.rep_indices, sel)
+    indices = data.rep_indices
 
     accel_reps = []
     vel_reps = []
     pos_reps = []
     magn_reps = []
-    for i in range(len(data.rep_indexes)-1):
-        accel_reps.append( [data.accel[indexes[i] : indexes[i+1]]] )
-        vel_reps.append( [data.vel[indexes[i] : indexes[i+1]]] )
-        pos_reps.append( [data.pos[indexes[i] : indexes[i+1]]] )
-        magn_reps.append( [data.magn[indexes[i] : indexes[i+1]]] )
+    for i in range(len(indices)-1):
+        accel_reps.append( data.accel[indices[i] : indices[i+1]] )
+        vel_reps.append( data.vel[indices[i] : indices[i+1]] )
+        pos_reps.append( data.pos[indices[i] : indices[i+1]] )
+        magn_reps.append( data.magn[indices[i] : indices[i+1]] )
 
     return accel_reps, vel_reps, pos_reps, magn_reps
 
@@ -107,34 +112,28 @@ def separate_reps(data: SetData):
 #Returns percentage score of how consistent the distance travelled in reps is
 def distance_analysis(pos_reps) -> list[float]:
     num_reps = len(pos_reps)
+    # pos_reps = num_reps x num_points x 3   --> pos_reps = num_reps x 3 x num_points
     pos_reps = [[isolate_axis(pos_reps[i], 0), isolate_axis(pos_reps[i], 1), isolate_axis(pos_reps[i], 2)] for i in range(num_reps)]
     pos_ranges = []
     for i in range(num_reps): # num_reps x 3
         pos_ranges.append([
-            np.max(pos_reps[0]) - np.min(pos_reps[0]),
-            np.max(pos_reps[1]) - np.min(pos_reps[1]),
-            np.max(pos_reps[2]) - np.min(pos_reps[2])
+            np.max(pos_reps[i][0]) - np.min(pos_reps[i][0]),
+            np.max(pos_reps[i][1]) - np.min(pos_reps[i][1]),
+            np.max(pos_reps[i][2]) - np.min(pos_reps[i][2])
         ])
 
-    # mean of all the x ranges, y ranges, z ranges
-    # pos_ranges_means = [np.mean(isolate_axis(pos_ranges, i)) for i in range(3)]
-    pos_zscores = []
-    # Check usage of zscore for this bit:
-    # for i in range(num_reps):
-    #     pos_zscores.append([
-    #         zscore(pos_ranges[i][0]),
-    #         zscore(pos_ranges[i][1]),
-    #         zscore(pos_ranges[i][2])
-    #     ])
+    xranges = isolate_axis(pos_ranges, 0)
+    yranges = isolate_axis(pos_ranges, 1)
+    zranges = isolate_axis(pos_ranges, 2)
 
     pos_zscores = join_axis(
-            zscore(isolate_axis(pos_ranges,0)),
-            zscore(isolate_axis(pos_ranges,1)),
-            zscore(isolate_axis(pos_ranges,2))
+            zscore(xranges),
+            zscore(yranges),
+            zscore(zranges)
     )
 
-    rep_scores = [np.mean(pos_zscores[i]) for i in range(0,num_reps-1)]
-    print(rep_scores)
+    rep_scores = [np.mean(pos_zscores[i]) for i in range(num_reps)]
+    # print(f'rep_scores: {rep_scores}')
     return [zscore_to_percentile(score) for score in rep_scores]
     
 
@@ -148,6 +147,7 @@ def shakiness_analysis(accel_reps, dt:float=1):
     # return [100*(1/(1+shak)) for shak in shakiness]
     rep_nb = len(accel_reps)
     accel_reps = [[isolate_axis(accel_reps[i], 0), isolate_axis(accel_reps[i], 1), isolate_axis(accel_reps[i], 2)] for i in range(rep_nb)]
+    # print(f'accel_reps shape: {np.shape(accel_reps)}')
     jerk_reps = [] # num_reps x 3 x num_points
     for i in range(rep_nb):
         jerk_reps.append([np.diff(accel_reps[i][0])/dt, 
@@ -160,13 +160,21 @@ def shakiness_analysis(accel_reps, dt:float=1):
                             np.max(jerk_reps[i][1]) - np.min(jerk_reps[i][1]),
                             np.max(jerk_reps[i][2]) - np.min(jerk_reps[i][2])])
 
-    scores_3d = [] # num_reps x 3
-    for i in range(rep_nb):
-        scores_3d.append([zscore(jerk_ranges[i][0]),
-                       zscore(jerk_ranges[i][1]),
-                       zscore(jerk_ranges[i][2])])
+    # print(f'jerk_ranges shape: {np.shape(jerk_ranges)}')
+
+    xjerk_ranges = isolate_axis(jerk_ranges, 0)
+    yjerk_ranges = isolate_axis(jerk_ranges, 1)
+    zjerk_ranges = isolate_axis(jerk_ranges, 2)
+
+    jerk_scores = join_axis(
+        zscore(xjerk_ranges),
+        zscore(yjerk_ranges),
+        zscore(zjerk_ranges)
+    )
+
+    # print(f'jerk_scores shape: {np.shape(jerk_scores)}')
         
-    rep_scores = [np.mean(scores_3d[i]) for i in rep_nb]
+    rep_scores = [np.mean(jerk_scores[i]) for i in range(rep_nb)]
 
     return [zscore_to_percentile(score) for score in rep_scores]
 
@@ -202,16 +210,25 @@ def shakiness_score_to_feedback(score) -> str:
         return "You're having trouble maintaining smooth movements throughout the reps. Try to keep your movements smoother."
 
 
+def pos_time_shak_to_overall_score(pos_score, time_score, shakiness_score):
+    # return np.mean([0.6*time_score, 0.2*pos_score, 0.2*shakiness_score])
+    return 0.6*time_score + 0.2*pos_score + 0.2*shakiness_score
+
+
 def give_feedback(accel_reps, vel_reps, pos_reps, magn_reps, timestamps):
     feedback = []
     num_reps = len(vel_reps)
 
     dist_scores = distance_analysis(pos_reps) # verify this, idk how to use this one
-    time_consistency_scores = time_consistency_analysis(timestamps)
+    # print(f'dist_scores: {dist_scores}')
+    time_consistency_scores = time_consistency_analysis(timestamps, num_reps)
+    # print(f'time_consistency_scores: {time_consistency_scores}')
     shakiness_scores = shakiness_analysis(accel_reps)
+    # print(f'shakiness_scores: {shakiness_scores}')
 
     for i in range(num_reps):
         feedback.append({
+            "score" : pos_time_shak_to_overall_score(dist_scores[i], time_consistency_scores[i], shakiness_scores[i]),
             "distance": pos_score_to_feedback(dist_scores[i]),
             "time_consistency": time_score_to_feedback(time_consistency_scores[i]),
             "shakiness": shakiness_score_to_feedback(shakiness_scores[i])
@@ -225,10 +242,10 @@ def give_feedback(accel_reps, vel_reps, pos_reps, magn_reps, timestamps):
 
 def main() -> None:
     print("Starting")
-    file = open("data/50_points.csv","r")
+    file = open("pi/50_points.csv","r")
     file_data = file.read().split("\n")
     file.close()
-    file = open("reps.txt","r")
+    file = open("pi/reps.txt","r")
     reps = file.read().split(" ")
     file.close()
     file_data = [line.split(",") for line in file_data] #Time | accel xyz | vel xyz | pos xyz
@@ -238,16 +255,36 @@ def main() -> None:
     pos = [ [float(file_data[i][j]) for j in range(7, 10)] for i in range(len(file_data))]
     mag = []
     t = [float(file_data[i][0]) for i in range(len(file_data))]
-    data = SetData(accel, vel, pos, mag, t,[], 0.01)
+    reps = [int(reps[i]) for i in range(len(reps))]
+    data = SetData(accel, vel, pos, mag, t, reps, 0.01)
     exercise = Workout("Rows")
-    data.rep_indexes = sort_reps(data,reps,exercise.select)
-    accel_reps, vel_reps, pos_reps, mag_reps = separate_reps(data)
-    feedback = give_feedback(accel_reps,vel_reps,pos_reps,mag_reps,data.sample_times)
+    # data.rep_indices = sort_reps(data, reps, exercise.select)
+    accel_reps, vel_reps, pos_reps, mag_reps = separate_reps(data, exercise.select)
+    feedbacks = give_feedback(accel_reps, vel_reps, pos_reps, mag_reps, data.sample_times)
     print("Done")
-    print(feedback)
+    # print(feedbacks)
     # dist = distance_analysis(pos_reps)
-    # times = time_consistency_analysis(data.sample_times,len(data.rep_indexes))
+    # times = time_consistency_analysis(data.sample_times,len(data.rep_indices))
     # shake = shakiness_analysis(accel_reps,data.ts)
+
+    scores = [feedback['score'] for feedback in feedbacks]
+    print(f'average_score: {np.mean(scores)}')
+
+
+    ## REMOVE THIS IN PROD
+    import matplotlib.pyplot as plt
+
+    plt.figure()
+    plt.plot(scores)
+    plt.plot(np.zeros(np.size(scores)) + np.mean(scores))
+    plt.ylabel('score')
+    plt.xlabel('rep nb')
+    plt.legend(['scores', 'av score'])
+
+
+
+    plt.show()
+
 
 
 

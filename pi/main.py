@@ -74,7 +74,6 @@ def main() -> None:
     current_workout_state = workout_states[-1]
     previous_workout_state = workout_states[-1]
     current_workout = Workout("Rows")
-    current_rep = 0
 
     init_time = time.time()
     g = 9.81
@@ -182,7 +181,7 @@ def main() -> None:
             
             if counted:
                 send_rep_number(rep_nb)
-                data.rep_indexes.append(len(data.sample_times)-1)
+                data.rep_indices.append(len(data.sample_times)-1)
                 print(f'Rep {rep_nb} counted!')
 
     except (KeyboardInterrupt, Exception) as e:
