@@ -43,7 +43,7 @@ def send_rep_data(data, current_rep_sent) -> str:
     return r.text
 
 
-def send_rep_number(workout_name, rep_nb) -> str:
+def send_rep_number(rep_nb) -> str:
     data = {
         'reps': rep_nb ,
         'pi_id': USER
@@ -54,6 +54,7 @@ def send_rep_number(workout_name, rep_nb) -> str:
 
 
 def main() -> None:
+    print('Starting...')
     ts = 0.01
     M = 50
 
@@ -180,7 +181,7 @@ def main() -> None:
                                 [magnetx_filter.output, magnety_filter.output, magnetz_filter.output])
             
             if counted:
-                send_rep_number(current_workout.workout, rep_nb)
+                send_rep_number(rep_nb)
                 data.rep_indexes.append(len(data.sample_times)-1)
                 print(f'Rep {rep_nb} counted!')
 
@@ -194,5 +195,5 @@ def main() -> None:
         pass
 
 
-if __name__ == '_main_':
+if __name__ == '__main__':
     main()
