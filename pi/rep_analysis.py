@@ -1,3 +1,4 @@
+
 # import smbus2
 # import gpiozero
 import json
@@ -7,7 +8,6 @@ from dataclasses import dataclass
 from enum import Enum
 import numpy as np
 from scipy import signal
-from scipy.signal import find_peaks
 from scipy.stats import linregress, zscore, norm
 # import pandas as pd
 import ast
@@ -57,15 +57,35 @@ class SetData:
     pos : list[ list[float,float,float]]
     magn: list[ list[float, float, float] ]
     sample_times: list[ float]
-    rep_indexes : list[float]
+    rep_indexes : list[int]
     ts : float
 
 ## UTILS FUNCTIONS
 def isolate_axis(points: list[list[float]], axis: int) -> list[float]:
     return [point[axis] for point in points]
 
+def join_axis(x : list[float] , y : list[float] , z : list[float]) -> list[list[float]]:
+    return [ [x[i], y[i], z[i]] for i in range(len(x)-1)]
+
+
 def zscore_to_percentile(score: float) -> float:
     return norm.sf(abs(score))*100
+
+def find_highest_peak(sig : list[float], offset : int):
+    tmp_peaks, peak_props = signal.find_peaks(sig,0.001)
+    highest = np.argmax(peak_props["peak_heights"])
+    return int(tmp_peaks[highest] + offset)
+
+def sort_reps(data: SetData, reps_live : list[int] , sel):
+    vel_smoothed = MovingAverage(50)
+    vel_smoothed = [vel_smoothed.update(val[sel[0]]) for val in data.vel] #smoothed velocity)
+    pos_peaks = []
+    for i in range(0,len(reps_live)-2):
+        current = int(reps_live[i])
+        next = int(reps_live[i+1])
+        pos_peaks.append(find_highest_peak(vel_smoothed[current:next],current))
+
+    return pos_peaks
 
 # VERIFY THIS
 def separate_reps(data: SetData):
@@ -75,7 +95,7 @@ def separate_reps(data: SetData):
     vel_reps = []
     pos_reps = []
     magn_reps = []
-    for i in range(len(data.rep_indexes))-1:
+    for i in range(len(data.rep_indexes)-1):
         accel_reps.append( [data.accel[indexes[i] : indexes[i+1]]] )
         vel_reps.append( [data.vel[indexes[i] : indexes[i+1]]] )
         pos_reps.append( [data.pos[indexes[i] : indexes[i+1]]] )
@@ -85,7 +105,7 @@ def separate_reps(data: SetData):
 
 
 #Returns percentage score of how consistent the distance travelled in reps is
-def distance_analysis(pos_reps) -> float:
+def distance_analysis(pos_reps) -> list[float]:
     num_reps = len(pos_reps)
     pos_reps = [[isolate_axis(pos_reps[i], 0), isolate_axis(pos_reps[i], 1), isolate_axis(pos_reps[i], 2)] for i in range(num_reps)]
     pos_ranges = []
@@ -99,15 +119,22 @@ def distance_analysis(pos_reps) -> float:
     # mean of all the x ranges, y ranges, z ranges
     # pos_ranges_means = [np.mean(isolate_axis(pos_ranges, i)) for i in range(3)]
     pos_zscores = []
-    for i in range(num_reps):
-        pos_zscores.append([
-            zscore(pos_ranges[i][0]),
-            zscore(pos_ranges[i][1]),
-            zscore(pos_ranges[i][2])
-        ])
+    # Check usage of zscore for this bit:
+    # for i in range(num_reps):
+    #     pos_zscores.append([
+    #         zscore(pos_ranges[i][0]),
+    #         zscore(pos_ranges[i][1]),
+    #         zscore(pos_ranges[i][2])
+    #     ])
 
-    rep_scores = [np.mean(pos_zscores[i]) for i in range(num_reps)]
+    pos_zscores = join_axis(
+            zscore(isolate_axis(pos_ranges,0)),
+            zscore(isolate_axis(pos_ranges,1)),
+            zscore(isolate_axis(pos_ranges,2))
+    )
 
+    rep_scores = [np.mean(pos_zscores[i]) for i in range(0,num_reps-1)]
+    print(rep_scores)
     return [zscore_to_percentile(score) for score in rep_scores]
     
 
@@ -177,7 +204,7 @@ def shakiness_score_to_feedback(score) -> str:
 
 def give_feedback(accel_reps, vel_reps, pos_reps, magn_reps, timestamps):
     feedback = []
-    num_reps = len(magn_reps)
+    num_reps = len(vel_reps)
 
     dist_scores = distance_analysis(pos_reps) # verify this, idk how to use this one
     time_consistency_scores = time_consistency_analysis(timestamps)
@@ -197,7 +224,33 @@ def give_feedback(accel_reps, vel_reps, pos_reps, magn_reps, timestamps):
     
 
 def main() -> None:
-    ...
+    print("Starting")
+    file = open("data/50_points.csv","r")
+    file_data = file.read().split("\n")
+    file.close()
+    file = open("reps.txt","r")
+    reps = file.read().split(" ")
+    file.close()
+    file_data = [line.split(",") for line in file_data] #Time | accel xyz | vel xyz | pos xyz
+    file_data.remove(file_data[-1])
+    accel = [ [float(file_data[i][j]) for j in range(1, 4)] for i in range(len(file_data))]
+    vel = [ [float(file_data[i][j]) for j in range(4, 7)] for i in range(len(file_data))]
+    pos = [ [float(file_data[i][j]) for j in range(7, 10)] for i in range(len(file_data))]
+    mag = []
+    t = [float(file_data[i][0]) for i in range(len(file_data))]
+    data = SetData(accel, vel, pos, mag, t,[], 0.01)
+    exercise = Workout("Rows")
+    data.rep_indexes = sort_reps(data,reps,exercise.select)
+    accel_reps, vel_reps, pos_reps, mag_reps = separate_reps(data)
+    feedback = give_feedback(accel_reps,vel_reps,pos_reps,mag_reps,data.sample_times)
+    print("Done")
+    print(feedback)
+    # dist = distance_analysis(pos_reps)
+    # times = time_consistency_analysis(data.sample_times,len(data.rep_indexes))
+    # shake = shakiness_analysis(accel_reps,data.ts)
 
-if __name__ == '_main_':
+
+
+
+if __name__ == '__main__':
     main()
