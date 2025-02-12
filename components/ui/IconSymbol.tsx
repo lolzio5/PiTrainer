@@ -9,7 +9,8 @@ const MATERIAL_MAPPING = {
   'chevron.left.forwardslash.chevron.right': 'code',
   'chevron.right': 'chevron-right',
   'history': 'history',
-  'workout': 'fitness-center'
+  'workout': 'fitness-center',
+  'analysis': 'lightbulb',
 } as const;
 
 export type IconSymbolName = keyof typeof MATERIAL_MAPPING;
