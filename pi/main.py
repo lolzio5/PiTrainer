@@ -18,7 +18,7 @@ workout_states = [
     'Idle'
 ]
 
-BACKEND_URL = "http://18.134.249.18:80/api"
+BACKEND_URL = "http://3.10.117.27:80/api"
 USER = "pi"
 
 ## ---- UTILS FUNCTIONS ---- ##

@@ -41,7 +41,7 @@ const Workout: React.FC = () => {
   const startWorkout = async () => {
     try {
       await axios.post(
-        'http://18.134.249.18:80/api/start',
+        'http://3.10.117.27:80/api/start',
         { exercise_name: selectedExercise.name },
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -55,7 +55,7 @@ const Workout: React.FC = () => {
 
   const fetchReps = async () => {
     try {
-      const response = await axios.get('http://18.134.249.18:80/api/reps', {
+      const response = await axios.get('http://3.10.117.27:80/api/reps', {
         headers: { Authorization: `Bearer ${token}` },
       });
       setRepCount(response.data);
@@ -66,7 +66,7 @@ const Workout: React.FC = () => {
 
   const startSet = async () => {
     try {
-      await axios.get('http://18.134.249.18:80/api/start_set', {
+      await axios.get('http://3.10.117.27:80/api/start_set', {
         headers: { Authorization: `Bearer ${token}` },
       });
       setRepCount(0);
@@ -79,7 +79,7 @@ const Workout: React.FC = () => {
 
   const endSet = async () => {
     try {
-      await axios.get('http://18.134.249.18:80/api/end_set', {
+      await axios.get('http://3.10.117.27:80/api/end_set', {
         headers: { Authorization: `Bearer ${token}` },
       });
       setRepCount(0);
@@ -91,7 +91,7 @@ const Workout: React.FC = () => {
 
   const endWorkout = async () => {
     try {
-      await axios.get('http://18.134.249.18:80/api/end', {
+      await axios.get('http://3.10.117.27:80/api/end', {
         headers: { Authorization: `Bearer ${token}` },
       });
       setWorkoutActive(false);

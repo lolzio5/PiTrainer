@@ -11,7 +11,7 @@ import pickle
 import pandas as pd
 import json
 
-# ssh -i "C:\Users\themi\Downloads\piTrainerKey.pem" ubuntu@18.134.249.18
+# ssh -i "C:\Users\themi\Downloads\piTrainerKey.pem" ubuntu@3.10.117.27
 app = Flask(__name__)
 CORS(app)  # Enable CORS for frontend requests
 app.config["JWT_SECRET_KEY"] = "supersecretkey"  # Change this in production!
@@ -19,8 +19,8 @@ jwt = JWTManager(app)
 
 # Connect the DynamoDB
 dynamodb = boto3.resource('dynamodb', region_name='us-east-1')
-#delete_table("UserData")
-#delete_table("Users")
+delete_table("UserData")
+delete_table("Users")
 workouts_table = dynamodb.Table("UserData")
 users_table = dynamodb.Table("Users")
 
@@ -108,7 +108,8 @@ def generate_mock_data(email):
             "date": data["date"],
             "exercise": data["exercise"],
             "rep_number": data["rep_number"],
-            "rep_quality": data["rep_quality"]
+            "rep_quality": data["rep_quality"],
+            "feedback": "You're having trouble maintaining smooth movements throughout the reps. Try to keep your movements smoother."
         }
 
         workouts_table.put_item(Item=workout_item)  # Store in DynamoDB
@@ -200,9 +201,11 @@ def get_home():
         
     # Calculate lifetime metrics as you previously did
     metrics = calculate_lifetime_metrics(items)
+    feedback=most_recent_workout['feedback']
     result={
         "lifetime_metrics": metrics,
-        "last_workout": workout_qualities
+        "last_workout": workout_qualities,
+        "feedback": feedback
     }
     return jsonify(result)
 
@@ -294,6 +297,7 @@ def process_data():
         rep_number = data.get('Rep Number')
         email = data.get('Email')
         pi_id=data.get('pi_id')
+        feedback=data.get('Feedback')
         formatted_data={
             'accel_x': data.get('accel_x'),
             'accel_y': data.get('accel_y'),
@@ -332,7 +336,8 @@ def process_data():
             "date": formatted_date,
             "exercise": workout_name,
             "rep_number": rep_number,
-            "rep_quality": rep_qualities
+            "rep_quality": rep_qualities,
+            "feedback": feedback
         }
         workouts_table.put_item(Item=workout_item)
         # Delete user data when workout is completed

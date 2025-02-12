@@ -20,7 +20,7 @@ const fetchHistoryData = async (token: string | null): Promise<Workout[] | null>
   try {
     if (token) {
       // Request protected route using token in header
-      const response = await axios.get('http://18.134.249.18:80/api/history', {
+      const response = await axios.get('http://3.10.117.27:80/api/history', {
         headers: {
           Authorization: `Bearer ${token}`,
         },

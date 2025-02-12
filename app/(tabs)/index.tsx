@@ -36,11 +36,12 @@ const renderStat = ({ item }: { item: { label: string; value: string } }) => (
 const fetchWorkoutData = async (token: string | null): Promise<{
   lifetimeMetrics: LifetimeMetrics;
   lastWorkout: WorkoutData;
+  feedback: string;
 } | null> => {
   try {
     if (token) {
       // Use the token to access protected routes
-       const response = await axios.get('http://18.134.249.18:80/api/home', {
+       const response = await axios.get('http://3.10.117.27:80/api/home', {
           headers: {
             Authorization: `Bearer ${token}`,  // Send token in the request header
           },
@@ -49,7 +50,8 @@ const fetchWorkoutData = async (token: string | null): Promise<{
 
         return {
             lifetimeMetrics: data.lifetime_metrics,
-            lastWorkout: data.last_workout
+            lastWorkout: data.last_workout,
+            feedback: data.feedback
         };
     }
     return null;
@@ -85,6 +87,7 @@ export default function Dashboard() {
     totalReps: number;
   } | null>(null);
   const [lifetimeMetrics, setLifetimeMetrics] = useState<LifetimeMetrics | null>(null);
+  const [feedback, setFeedback] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const { token } = useAuth();
 
@@ -94,6 +97,7 @@ export default function Dashboard() {
       if (data) {
         setLifetimeMetrics(data.lifetimeMetrics);
         setWorkoutData(processWorkoutData(data.lastWorkout));  // Process the workout data
+        setFeedback(data.feedback);
       }
     })
     .catch((error) => {
@@ -172,6 +176,7 @@ export default function Dashboard() {
               absolute // Show actual values instead of percentages
             />
             <Text style={styles.totalRepsText}>Total Reps: {workoutData.totalReps}</Text>
+            <Text style={styles.totalRepsText}>{feedback}</Text>
           </>
         ) : (
           <Text>Failed to load workout data.</Text>
