@@ -103,9 +103,9 @@ export default function History() {
   if (workouts.length === 0) {
     return (
       <View style={styles.noWorkoutContainer}>
-        <Text style={styles.noWorkoutText}>No Workouts Found</Text>
+        <Text style={styles.noWorkoutText}>No workouts found :(</Text>
         <Text style={styles.noWorkoutSubtext}>
-          Start a new workout by navigating to the "Start Workout" tab!
+          Start a new workout by navigating to the "New Workout" tab!
         </Text>
         <TouchableOpacity style={styles.startWorkoutButton} onPress={() => router.push('./workout')}>
           <Text style={styles.startWorkoutButtonText}>Start Workout</Text>

@@ -2,7 +2,7 @@ from flask import Flask, jsonify, request
 from flask_cors import CORS
 from datetime import datetime, timedelta
 import random
-from database import create_database_table, create_user_table, delete_table
+from database import create_database_table, create_user_table, delete_table, create_set_table
 import boto3
 from login import register_user, verify_user
 from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity
@@ -21,8 +21,10 @@ jwt = JWTManager(app)
 dynamodb = boto3.resource('dynamodb', region_name='us-east-1')
 #delete_table("UserData")
 #delete_table("Users")
+#delete_table("SetData")
 workouts_table = dynamodb.Table("UserData")
 users_table = dynamodb.Table("Users")
+set_table = dynamodb.Table("SetData")
 
 # Global dictionary to store the reps of all users
 global_reps = {}
@@ -118,6 +120,7 @@ def generate_mock_data(email):
 def initialize_tables():
     create_database_table(dynamodb)
     create_user_table(dynamodb)
+    create_set_table(dynamodb)
 
 # Routes for the mobile app
 @app.route("/api/signup", methods=["POST"])
@@ -135,7 +138,7 @@ def signup():
     user_id=register_user(email, password, pi_id, users_table)
     access_token = create_access_token(identity=email)
     #generate_mock_data(email)
-    print(f"Registered {email}!")
+    #print(f"Registered {email}!")
     return jsonify({"access_token": access_token}), 200
 
 @app.route("/api/login", methods=["POST"])
@@ -209,6 +212,24 @@ def get_home():
     }
     return jsonify(result)
 
+@app.route("/api/analysis", methods=["GET"])
+@jwt_required()
+def get_analysis():
+    current_user = get_jwt_identity()  # Get the logged-in user's ID
+    workout_id=global_reps[current_user]['workoutID']
+
+    # Query all workouts for the user, sorted by date
+    response = set_table.query(
+        KeyConditionExpression="WorkoutID = :id",
+        ExpressionAttributeValues={":id": workout_id},
+        ScanIndexForward=True
+    )
+    items = response.get("Items", [])
+    if not items:
+        return jsonify({"error": "No analysis found for this workout"}), 404
+    global_reps.pop(current_user)
+    return jsonify(items)
+
 @app.route("/api/start", methods=["POST"])
 @jwt_required()
 def start_workout():
@@ -226,7 +247,8 @@ def start_workout():
         "exercise": exercise,
         "reps": 0,
         "workout": True,
-        "set": True
+        "set": True,
+        "workoutID": str(uuid.uuid4())
     }
     user_pi_id[pi_id]=current_user
     return jsonify(global_reps[current_user]['reps'])
@@ -263,41 +285,83 @@ def end_workout():
     global_reps[current_user]['workout']=False
     return jsonify("Workout Ended")
 
+
+
 # Routes for the Pi
 @app.route("/api/rep", methods=["POST"])
 def count_rep():
-    data = request.json
-    pi_id = data.get("pi_id")
-    rep_count = data.get("reps")
-    current_user = user_pi_id.get(pi_id)
-    if current_user is None:
-        return jsonify({"response": "Idle"})  # If pi_id is not found, return "Idle"
-    global_reps[current_user]['reps'] = rep_count
-    return jsonify({"response": "success"})
+    try:
+        data = request.json
+        pi_id = data.get("pi_id")
+        current_user = user_pi_id.get(pi_id)
+        if current_user is None:
+            return jsonify({"response": "Idle"})  # If pi_id is not found, return "Idle"
+        global_reps[current_user]['reps'] += 1
+        return jsonify({"response": "success"})
+    except Exception as e:
+        print(f"Error processing data: {e}")
+        return jsonify({"error": "Failed to process data"}), 500
 
 @app.route("/api/pipoll", methods=["POST"])
 def pi_poll():
-    pi_id = request.json
-    current_user = user_pi_id.get(pi_id)
-    if current_user is None:
-        return jsonify({"response": "Idle"})  # If pi_id is not found, return "Idle"
-    if global_reps[current_user]['workout'] and global_reps[current_user]['set']:
-        return jsonify({"response":global_reps[current_user]['exercise']})
-    elif global_reps[current_user]['set']==False:
-        return jsonify({"response":"Pseudo Idle"})
-    return jsonify({"response":"Idle"})
+    try: 
+        data = request.json
+        current_user = user_pi_id.get(data)
+        if current_user is None:
+            return jsonify({"response": "Idle"})  # If pi_id is not found, return "Idle"
+        if global_reps[current_user]['workout'] and global_reps[current_user]['set']:
+            return jsonify({"response":global_reps[current_user]['exercise']})
+        elif global_reps[current_user]['set']==False:
+            return jsonify({"response":"Pseudo Idle"})
+        return jsonify({"response":"Idle"})
+    except Exception as e:
+        print(f"Error processing data: {e}")
+        return jsonify({"error": "Failed to process data"}), 500
+
+@app.route("/api/anal", methods=["POST"])
+def analyse_data():
+    try:
+        data = request.json
+        pi_id = data.get("pi_id")
+        current_user = user_pi_id.get(pi_id)
+        workout_id=global_reps[current_user]['workoutID']
+        set_count = data.get("set_count")
+        overall_score = data.get("overall_score")
+        distance_score = data.get("distance_score")
+        distance_feedback = data.get("distance_feedback")
+        consistency_score = data.get("time_consistency_score")
+        consistency_feedback = data.get("time_consistency_feedback")
+        shakiness_score = data.get("shakiness_score")
+        shakiness_feedback = data.get("shakiness_feedback")
+
+        set_item = {
+                "WorkoutID": workout_id,
+                "set_count": set_count,
+                "overall_score": overall_score,
+                "distance_score": distance_score,
+                "distance_feedback": distance_feedback,
+                "time_consistency_score": consistency_score,
+                "time_consistency_feedback": consistency_feedback,
+                "shakiness_score": shakiness_score,
+                "shakiness_feedback": shakiness_feedback
+            }
+        set_table.put_item(Item=set_item)
+    except Exception as e:
+        print(f"Error processing data: {e}")
+        return jsonify({"error": "Failed to process data"}), 500
+    return jsonify("success"), 200
+    
 
 @app.route("/api/process", methods=["POST"])
 def process_data():
     try:
         # Parse incoming form data
-        data = request.form.to_dict()
+        data = request.json
 
-        workout_name = data.get('Name')
-        rep_number = data.get('Rep Number')
-        email = data.get('Email')
+        workout_name = data.get('name')
         pi_id=data.get('pi_id')
-        feedback=data.get('Feedback')
+        email = user_pi_id.get(pi_id)
+        feedback=data.get('feedback')
         formatted_data={
             'accel_x': data.get('accel_x'),
             'accel_y': data.get('accel_y'),
@@ -313,39 +377,38 @@ def process_data():
             'mag_z': data.get('mag_z')
         }
         data_to_predict=pd.Dataframe(formatted_data)
-
-        # Debug print to verify data (can be removed in production)
-        print(f"Received data from user {email}: {data_to_predict}")
         
         # Predict the rep quality using saved model weights
         if workout_name=="Seated Cable Rows":
             model = pickle.load("seated_cable_rows.pkl")
             rep_qualities=model.predict(data_to_predict)
-        elif workout_name=="Lat Pulldowns":
-            model = pickle.load("lat_pulldowns.pkl")
-            rep_qualities=model.predict(data)
+        # elif workout_name=="Lat Pulldowns":
+        #     model = pickle.load("lat_pulldowns.pkl")
+        #     rep_qualities=model.predict(data)
 
         # Format as YYYY-MM-DD
         current_date = datetime.now()
         formatted_date = current_date.strftime('%Y-%m-%d')
         
+        workout_id=global_reps[email]['workoutID']
         # Save the workout in the database
         workout_item = {
             "UserID": email,
-            "WorkoutID": str(uuid.uuid4()),
+            "WorkoutID": workout_id,
             "date": formatted_date,
             "exercise": workout_name,
-            "rep_number": rep_number,
+            "rep_number": len(rep_qualities),
             "rep_quality": rep_qualities,
             "feedback": feedback
         }
+
         workouts_table.put_item(Item=workout_item)
         # Delete user data when workout is completed
         user_pi_id.pop(pi_id)
-        global_reps.pop(email)
 
         # Respond with JSON
         return jsonify("success"), 200
+    
     except Exception as e:
         print(f"Error processing data: {e}")
         return jsonify({"error": "Failed to process data"}), 500
