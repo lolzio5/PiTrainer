@@ -43,7 +43,7 @@ def create_set_table(dynamodb=None):
             {'AttributeName': 'WorkoutID', 'KeyType': 'HASH'},  # Primary Key
         ],
         AttributeDefinitions=[
-            {'AttributeName': 'UserID', 'AttributeType': 'S'},  # String
+            {'AttributeName': 'WorkoutID', 'AttributeType': 'S'},  # String
         ],
         ProvisionedThroughput={
             'ReadCapacityUnits': 10,

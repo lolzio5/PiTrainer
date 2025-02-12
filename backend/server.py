@@ -360,7 +360,6 @@ def process_data():
         data = request.json
 
         workout_name = data.get('name')
-        rep_number = data.get('rep_number')
         pi_id=data.get('pi_id')
         email = user_pi_id.get(pi_id)
         feedback=data.get('feedback')
@@ -399,7 +398,7 @@ def process_data():
             "WorkoutID": workout_id,
             "date": formatted_date,
             "exercise": workout_name,
-            "rep_number": rep_number,
+            "rep_number": len(rep_qualities),
             "rep_quality": rep_qualities,
             "feedback": feedback
         }
