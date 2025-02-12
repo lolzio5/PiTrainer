@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, Button, StyleSheet, Image, TouchableOpacity } from 'react-native';
+import { View, Text, Button, StyleSheet, TouchableOpacity } from 'react-native';
+import {Image} from 'expo-image'
 import { Picker } from '@react-native-picker/picker';
 import axios from 'axios';
 import { useAuth } from '../context';
@@ -12,11 +13,11 @@ interface Exercise {
 const exercises: Exercise[] = [
   {
     name: 'Seated Cable Rows',
-    image: require('../../assets/images/seated_cable_rows.png'),
+    image: require('../../assets/images/seated_cable_rows.gif'),
   },
   {
     name: 'Lat Pulldowns',
-    image: require('../../assets/images/lat_pulldown.jpg'),
+    image: require('../../assets/images/lat_pulldowns.gif'),
   }
 ];
 const Workout: React.FC = () => {
@@ -197,13 +198,13 @@ const styles = StyleSheet.create({
   },
   exerciseStats: {
     fontSize: 16,
-    marginBottom: 20,
+    marginBottom: 5,
   },
   repCount: {
     fontSize: 60, // Large Rep Counter
     fontWeight: 'bold',
     color: '#007BFF',
-    marginVertical: 20,
+    marginVertical: 10,
   },
   buttonStart: {
     backgroundColor: '#007BFF',
@@ -217,7 +218,7 @@ const styles = StyleSheet.create({
     padding: 14,
     borderRadius: 8,
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 5,
   },
   buttonText: {
     color: '#fff',
