@@ -12,33 +12,36 @@ CMD_SM = 0x3E# Start single meaurement mode (x30), X, Y, Z-Axis enabled (x0E)
 def Mag_init():
     #Extra code for adjusting gain and sensitvity
     #AH = 0x00, AL = 0x5C, GAIN_SEL = 5, Address register (0x00 << 2)
-    config = [0x00, 0x0C, 0x00]
-    bus.write_i2c_block_data(MLX90393_ADDR, 0x60, config)
+    global MLX90393_ADDR
+    try:
+        config = [0x00, 0x0C, 0x00]
+        bus.write_i2c_block_data(MLX90393_ADDR, 0x60, config)
 
-    # Read data back, 1 byte
-    # Status byte
-    data = bus.read_byte(MLX90393_ADDR)
+        # Read data back, 1 byte
+        # Status byte
+        data = bus.read_byte(MLX90393_ADDR)
 
-    # AH = 0x02, AL = 0xB4, RES for magnetic measurement = 0, Address register (0x02 << 2)
-    config = [0x02, 0xB4, 0x08]
-    bus.write_i2c_block_data(MLX90393_ADDR, 0x60, config)
+        # AH = 0x02, AL = 0xB4, RES for magnetic measurement = 0, Address register (0x02 << 2)
+        config = [0x02, 0xB4, 0x08]
+        bus.write_i2c_block_data(MLX90393_ADDR, 0x60, config)
 
-    # Read data back, 1 byte
-    # Status byte
-    data = bus.read_byte(MLX90393_ADDR)
+        # Read data back, 1 byte
+        # Status byte
+        data = bus.read_byte(MLX90393_ADDR)
 
-	#Set mode
-    bus.write_byte(MLX90393_ADDR, CMD_SM)
+        #Set mode
+        bus.write_byte(MLX90393_ADDR, CMD_SM)
 
-    # Status byte
-    data = bus.read_byte(MLX90393_ADDR)
-
+        # Status byte
+        data = bus.read_byte(MLX90393_ADDR)
+    except OSError:
+        print("Error in initializing magnetometer")
     time.sleep(0.5)
 
 def Mag_Read() -> tuple[int,int,int]:	
     # Status, xMag msb, xMag lsb, yMag msb, yMag lsb, zMag msb, zMag lsb
     data = bus.read_i2c_block_data(MLX90393_ADDR, CMD_READ, 7)
-    print(data)
+    # print(data)
     # Convert the data
     xMag = (data[1] << 8) | data[2]
     #print("raw x : %d" %xMag)

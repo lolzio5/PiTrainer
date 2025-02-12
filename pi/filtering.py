@@ -25,6 +25,10 @@ class MovingAverage:
 
         self.output = sum(self.buffer) / len(self.buffer)
         return self.output
+    
+    def clear(self) -> None:
+        self.buffer = [0.0 for _ in range(self.size)]
+        self.output = 0
 
 
 
@@ -123,54 +127,7 @@ class KalmanFilter3D:
     def print(self) -> None:
         print(f"Current State: {self.current_state}\tCovariance Coeff: {self.P}")
 
-
-
-if __name__ == '__main__':
-    # KALMAN TESTING
-    import accelerometer
-    import time
-
-    accelerometer.lis3dh_init()
-    ts = 0.01
-    accelx_filter = KalmanFilter3D(ts)
-    accely_filter = KalmanFilter3D(ts)
-    accelz_filter = KalmanFilter3D(ts)
-
-    filtered_accel = []
-    filtered_vel = []
-    filtered_pos = []
-
-    try:
-        # for i in range(1000):
-        while True:
-            accelx, accely, accelz = accelerometer.lis3dh_read_xyz()
-
-            accelx_filter.step(accelx)
-            accely_filter.step(accely)
-            accelz_filter.step(accelz)
-
-            filtered_accel.append((
-                accelx_filter.acceleration,
-                accely_filter.acceleration,
-                accelz_filter.acceleration
-            ))
-
-            filtered_vel.append((
-                accelx_filter.velocity,
-                accely_filter.velocity,
-                accelz_filter.velocity
-            ))
-
-            filtered_pos.append((
-                accelx_filter.position,
-                accely_filter.position,
-                accelz_filter.position
-            ))
-
-            time.sleep(ts)
-
-    except KeyboardInterrupt:
-        print('Exiting...')
+    def clear(self) -> None:
+        # could be more efficient but this is fine
+        self = KalmanFilter3D(self.dt)
         
-        for i, a in enumerate(filtered_accel):
-            print(f"{filtered_accel[i]} | {filtered_vel[i]} | {filtered_pos[i]}")
