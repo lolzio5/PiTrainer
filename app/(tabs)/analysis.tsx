@@ -2,8 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView, StyleSheet, ActivityIndicator, TouchableOpacity } from 'react-native';
 import axios from 'axios';
 import { useAuth } from '../context';
-import { useNavigation } from '@react-navigation/native';
-import {router} from 'expo-router'
+import { router } from 'expo-router';
 
 interface WorkoutSet {
   WorkoutID: string;
@@ -19,7 +18,6 @@ interface WorkoutSet {
 
 const WorkoutAnalysis: React.FC = () => {
   const { token } = useAuth();
-  const navigation = useNavigation();
   const [sets, setSets] = useState<WorkoutSet[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);

@@ -19,9 +19,9 @@ jwt = JWTManager(app)
 
 # Connect the DynamoDB
 dynamodb = boto3.resource('dynamodb', region_name='us-east-1')
-#delete_table("UserData")
-#delete_table("Users")
-#delete_table("SetData")
+delete_table("UserData")
+delete_table("Users")
+delete_table("SetData")
 workouts_table = dynamodb.Table("UserData")
 users_table = dynamodb.Table("Users")
 set_table = dynamodb.Table("SetData")
@@ -137,8 +137,8 @@ def signup():
 
     user_id=register_user(email, password, pi_id, users_table)
     access_token = create_access_token(identity=email)
-    generate_mock_data(email)
-    print(f"Registered {email}!")
+    #generate_mock_data(email)
+    #print(f"Registered {email}!")
     return jsonify({"access_token": access_token}), 200
 
 @app.route("/api/login", methods=["POST"])
@@ -212,6 +212,24 @@ def get_home():
     }
     return jsonify(result)
 
+@app.route("/api/analysis", methods=["GET"])
+@jwt_required()
+def get_analysis():
+    current_user = get_jwt_identity()  # Get the logged-in user's ID
+    workout_id=global_reps[current_user]['workoutID']
+
+    # Query all workouts for the user, sorted by date
+    response = set_table.query(
+        KeyConditionExpression="WorkoutID = :id",
+        ExpressionAttributeValues={":id": workout_id},
+        ScanIndexForward=True
+    )
+    items = response.get("Items", [])
+    if not items:
+        return jsonify({"error": "No analysis found for this workout"}), 404
+    global_reps.pop(current_user)
+    return jsonify(items)
+
 @app.route("/api/start", methods=["POST"])
 @jwt_required()
 def start_workout():
@@ -266,6 +284,8 @@ def end_workout():
     current_user = get_jwt_identity()
     global_reps[current_user]['workout']=False
     return jsonify("Workout Ended")
+
+
 
 # Routes for the Pi
 @app.route("/api/rep", methods=["POST"])
@@ -376,7 +396,6 @@ def process_data():
         workouts_table.put_item(Item=workout_item)
         # Delete user data when workout is completed
         user_pi_id.pop(pi_id)
-        global_reps.pop(email)
 
         # Respond with JSON
         return jsonify("success"), 200
