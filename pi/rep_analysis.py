@@ -106,7 +106,7 @@ def separate_reps(data: SetData, sel):
         pos_reps.append( data.pos[indices[i] : indices[i+1]] )
         magn_reps.append( data.magn[indices[i] : indices[i+1]] )
 
-    return accel_reps, vel_reps, pos_reps, magn_reps
+    return accel_reps, vel_reps, pos_reps, magn_reps, indices
 
 
 #Returns percentage score of how consistent the distance travelled in reps is
@@ -137,8 +137,10 @@ def distance_analysis(pos_reps) -> list[float]:
     return [zscore_to_percentile(score) for score in rep_scores]
     
 
-def time_consistency_analysis(t, num_reps):
-    _, _, r_value, _, _ = linregress(t, range(len(t)))
+def time_consistency_analysis(t, reps):
+    num_reps = len(reps)
+    t_reps = [t[rep] for rep in reps]
+    _, _, r_value, _, _ = linregress(t_reps, range(len(t_reps)))
     return [100*r_value**2 for _ in range(num_reps)]
 
 
@@ -215,24 +217,25 @@ def pos_time_shak_to_overall_score(pos_score, time_score, shakiness_score):
     return 0.6*time_score + 0.2*pos_score + 0.2*shakiness_score
 
 
-def give_feedback(accel_reps, vel_reps, pos_reps, magn_reps, timestamps):
+def give_feedback(data : SetData, exercise : Workout):
+    accel_reps, _, pos_reps, _, data, reps = separate_reps(data, exercise.select)
+
     feedback = []
-    num_reps = len(vel_reps)
+    score = []
+    num_reps = len(reps)
 
     dist_scores = distance_analysis(pos_reps) # verify this, idk how to use this one
-    # print(f'dist_scores: {dist_scores}')
-    time_consistency_scores = time_consistency_analysis(timestamps, num_reps)
-    # print(f'time_consistency_scores: {time_consistency_scores}')
+    time_consistency_scores = time_consistency_analysis(data.sample_times, reps)
     shakiness_scores = shakiness_analysis(accel_reps)
-    # print(f'shakiness_scores: {shakiness_scores}')
 
-    for i in range(num_reps):
-        feedback.append({
-            "score" : pos_time_shak_to_overall_score(dist_scores[i], time_consistency_scores[i], shakiness_scores[i]),
-            "distance": pos_score_to_feedback(dist_scores[i]),
-            "time_consistency": time_score_to_feedback(time_consistency_scores[i]),
-            "shakiness": shakiness_score_to_feedback(shakiness_scores[i])
-        })
+
+    [score.append(pos_time_shak_to_overall_score(dist_scores[i],time_consistency_scores[i],shakiness_scores[i])) for i in range(0,num_reps-1)]
+    feedback = {
+        "score" : score,
+        "distance" : pos_score_to_feedback(np.mean(dist_scores)),
+        "time_consistency" : time_score_to_feedback(np.mean(time_consistency_scores)),
+        "shakiness" : shakiness_score_to_feedback(np.mean(shakiness_scores))
+    }
 
     return feedback
 
@@ -242,10 +245,10 @@ def give_feedback(accel_reps, vel_reps, pos_reps, magn_reps, timestamps):
 
 def main() -> None:
     print("Starting")
-    file = open("pi/50_points.csv","r")
+    file = open("data/50_points.csv","r")
     file_data = file.read().split("\n")
     file.close()
-    file = open("pi/reps.txt","r")
+    file = open("reps.txt","r")
     reps = file.read().split(" ")
     file.close()
     file_data = [line.split(",") for line in file_data] #Time | accel xyz | vel xyz | pos xyz
@@ -258,32 +261,14 @@ def main() -> None:
     reps = [int(reps[i]) for i in range(len(reps))]
     data = SetData(accel, vel, pos, mag, t, reps, 0.01)
     exercise = Workout("Rows")
-    # data.rep_indices = sort_reps(data, reps, exercise.select)
-    accel_reps, vel_reps, pos_reps, mag_reps = separate_reps(data, exercise.select)
-    feedbacks = give_feedback(accel_reps, vel_reps, pos_reps, mag_reps, data.sample_times)
-    print("Done")
-    # print(feedbacks)
-    # dist = distance_analysis(pos_reps)
-    # times = time_consistency_analysis(data.sample_times,len(data.rep_indices))
-    # shake = shakiness_analysis(accel_reps,data.ts)
+    # accel_reps, vel_reps, pos_reps, mag_reps, data.rep_indices = separate_reps(data, exercise.select)
+    feedbacks = give_feedback(data,exercise)
 
-    scores = [feedback['score'] for feedback in feedbacks]
+
+    scores = feedbacks['score'] 
     print(f'average_score: {np.mean(scores)}')
+    print(feedbacks)
 
-
-    ## REMOVE THIS IN PROD
-    import matplotlib.pyplot as plt
-
-    plt.figure()
-    plt.plot(scores)
-    plt.plot(np.zeros(np.size(scores)) + np.mean(scores))
-    plt.ylabel('score')
-    plt.xlabel('rep nb')
-    plt.legend(['scores', 'av score'])
-
-
-
-    plt.show()
 
 
 
