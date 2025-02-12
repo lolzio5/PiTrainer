@@ -19,8 +19,8 @@ jwt = JWTManager(app)
 
 # Connect the DynamoDB
 dynamodb = boto3.resource('dynamodb', region_name='us-east-1')
-delete_table("UserData")
-delete_table("Users")
+#delete_table("UserData")
+#delete_table("Users")
 workouts_table = dynamodb.Table("UserData")
 users_table = dynamodb.Table("Users")
 
