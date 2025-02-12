@@ -1,11 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useCallback } from 'react';
 import { View, Text, StyleSheet, FlatList, ActivityIndicator, Dimensions } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
-import { RootStackParamList } from '@/types';
-import { NavigationProp } from '@react-navigation/native';
 import { PieChart } from 'react-native-chart-kit';
 import { useAuth } from '../context';
 import axios from 'axios';
+import { useFocusEffect } from '@react-navigation/native';
 
 interface WorkoutQuality {
   quality: string;
@@ -90,23 +88,25 @@ export default function Dashboard() {
   const [feedback, setFeedback] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const { token } = useAuth();
-
-  useEffect(() => {
-    fetchWorkoutData(token)
-    .then((data) => {
-      if (data) {
-        setLifetimeMetrics(data.lifetimeMetrics);
-        setWorkoutData(processWorkoutData(data.lastWorkout));  // Process the workout data
-        setFeedback(data.feedback);
-      }
-    })
-    .catch((error) => {
-      console.error("Error in useEffect fetching data:", error);
-    })
-    .finally(() => {
-      setIsLoading(false); // Ensure loading state is updated in both success and failure cases
-    });
-  }, []);
+  
+  useFocusEffect(
+    useCallback(() => {
+      fetchWorkoutData(token)
+      .then((data) => {
+        if (data) {
+          setLifetimeMetrics(data.lifetimeMetrics);
+          setWorkoutData(processWorkoutData(data.lastWorkout));  // Process the workout data
+          setFeedback(data.feedback);
+        }
+      })
+      .catch((error) => {
+        console.error("Error in useEffect fetching data:", error);
+      })
+      .finally(() => {
+        setIsLoading(false); // Ensure loading state is updated in both success and failure cases
+      });
+    }, [])
+  );
 
   const stats = [
     { label: 'Total Workouts', value: lifetimeMetrics?.total_workouts.toString() || 'N/A' },

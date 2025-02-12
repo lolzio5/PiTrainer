@@ -1,10 +1,11 @@
-import React, { useEffect, useState, useCallback,  } from 'react';
+import React, { useState, useCallback,  } from 'react';
 import { View, Text, FlatList, StyleSheet, Dimensions, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { LineChart } from 'react-native-chart-kit';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '../context';
 import { router } from 'expo-router';
 import axios from 'axios';
+import { useFocusEffect } from '@react-navigation/native';
 
 interface Workout {
   WorkoutID: string;
@@ -80,9 +81,11 @@ export default function History() {
     setLoading(false);
   }, [token]);
 
-  useEffect(() => {
-    fetchWorkouts();
-  }, [fetchWorkouts]);
+  useFocusEffect(
+    useCallback(() => {
+      fetchWorkouts();
+    }, [fetchWorkouts])
+  );
 
   if (loading) {
     return (
