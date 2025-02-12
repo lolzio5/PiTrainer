@@ -106,7 +106,7 @@ export default function History() {
   if (workouts.length === 0) {
     return (
       <View style={styles.noWorkoutContainer}>
-        <Text style={styles.noWorkoutText}>No workouts found</Text>
+        <Text style={styles.noWorkoutText}>No workouts found :(</Text>
         <Text style={styles.noWorkoutSubtext}>
           Start a new workout by navigating to the "New Workout" tab!
         </Text>
