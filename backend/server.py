@@ -19,9 +19,9 @@ jwt = JWTManager(app)
 
 # Connect the DynamoDB
 dynamodb = boto3.resource('dynamodb', region_name='us-east-1')
-delete_table("UserData")
-delete_table("Users")
-delete_table("SetData")
+#delete_table("UserData")
+#delete_table("Users")
+#delete_table("SetData")
 workouts_table = dynamodb.Table("UserData")
 users_table = dynamodb.Table("Users")
 set_table = dynamodb.Table("SetData")
@@ -290,55 +290,66 @@ def end_workout():
 # Routes for the Pi
 @app.route("/api/rep", methods=["POST"])
 def count_rep():
-    data = request.json
-    pi_id = data.get("pi_id")
-    rep_count = data.get("reps")
-    current_user = user_pi_id.get(pi_id)
-    if current_user is None:
-        return jsonify({"response": "Idle"})  # If pi_id is not found, return "Idle"
-    global_reps[current_user]['reps'] = rep_count
-    return jsonify({"response": "success"})
+    try:
+        data = request.json
+        pi_id = data.get("pi_id")
+        current_user = user_pi_id.get(pi_id)
+        if current_user is None:
+            return jsonify({"response": "Idle"})  # If pi_id is not found, return "Idle"
+        global_reps[current_user]['reps'] += 1
+        return jsonify({"response": "success"})
+    except Exception as e:
+        print(f"Error processing data: {e}")
+        return jsonify({"error": "Failed to process data"}), 500
 
 @app.route("/api/pipoll", methods=["POST"])
 def pi_poll():
-    pi_id = request.json
-    current_user = user_pi_id.get(pi_id)
-    if current_user is None:
-        return jsonify({"response": "Idle"})  # If pi_id is not found, return "Idle"
-    if global_reps[current_user]['workout'] and global_reps[current_user]['set']:
-        return jsonify({"response":global_reps[current_user]['exercise']})
-    elif global_reps[current_user]['set']==False:
-        return jsonify({"response":"Pseudo Idle"})
-    return jsonify({"response":"Idle"})
+    try: 
+        data = request.json
+        pi_id = data.get("pi_id")
+        current_user = user_pi_id.get(pi_id)
+        if current_user is None:
+            return jsonify({"response": "Idle"})  # If pi_id is not found, return "Idle"
+        if global_reps[current_user]['workout'] and global_reps[current_user]['set']:
+            return jsonify({"response":global_reps[current_user]['exercise']})
+        elif global_reps[current_user]['set']==False:
+            return jsonify({"response":"Pseudo Idle"})
+        return jsonify({"response":"Idle"})
+    except Exception as e:
+        print(f"Error processing data: {e}")
+        return jsonify({"error": "Failed to process data"}), 500
 
 @app.route("/api/anal", methods=["POST"])
 def analyse_data():
-    data = request.json
-    pi_id = data.get("pi_id")
-    current_user = user_pi_id.get(pi_id)
-    workout_id=global_reps[current_user]['workoutID']
-    set_count = data.get("set_count")
-    overall_score = data.get("overall_score")
-    distance_score = data.get("distance_score")
-    distance_feedback = data.get("distance_feedback")
-    consistency_score = data.get("time_consistency_score")
-    consistency_feedback = data.get("time_consistency_feedback")
-    shakiness_score = data.get("shakiness_score")
-    shakiness_feedback = data.get("shakiness_feedback")
+    try:
+        data = request.json
+        pi_id = data.get("pi_id")
+        current_user = user_pi_id.get(pi_id)
+        workout_id=global_reps[current_user]['workoutID']
+        set_count = data.get("set_count")
+        overall_score = data.get("overall_score")
+        distance_score = data.get("distance_score")
+        distance_feedback = data.get("distance_feedback")
+        consistency_score = data.get("time_consistency_score")
+        consistency_feedback = data.get("time_consistency_feedback")
+        shakiness_score = data.get("shakiness_score")
+        shakiness_feedback = data.get("shakiness_feedback")
 
-    set_item = {
-            "WorkoutID": workout_id,
-            "set_count": set_count,
-            "overall_score": overall_score,
-            "distance_score": distance_score,
-            "distance_feedback": distance_feedback,
-            "time_consistency_score": consistency_score,
-            "time_consistency_feedback": consistency_feedback,
-            "shakiness_score": shakiness_score,
-            "shakiness_feedback": shakiness_feedback
-        }
-    set_table.put_item(Item=set_item)
-
+        set_item = {
+                "WorkoutID": workout_id,
+                "set_count": set_count,
+                "overall_score": overall_score,
+                "distance_score": distance_score,
+                "distance_feedback": distance_feedback,
+                "time_consistency_score": consistency_score,
+                "time_consistency_feedback": consistency_feedback,
+                "shakiness_score": shakiness_score,
+                "shakiness_feedback": shakiness_feedback
+            }
+        set_table.put_item(Item=set_item)
+    except Exception as e:
+        print(f"Error processing data: {e}")
+        return jsonify({"error": "Failed to process data"}), 500
     return jsonify("success"), 200
     
 
