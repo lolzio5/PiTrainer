@@ -306,8 +306,7 @@ def count_rep():
 def pi_poll():
     try: 
         data = request.json
-        pi_id = data.get("pi_id")
-        current_user = user_pi_id.get(pi_id)
+        current_user = user_pi_id.get(data)
         if current_user is None:
             return jsonify({"response": "Idle"})  # If pi_id is not found, return "Idle"
         if global_reps[current_user]['workout'] and global_reps[current_user]['set']:

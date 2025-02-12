@@ -25,7 +25,7 @@ const WorkoutAnalysis: React.FC = () => {
   // Fetch workout analysis data (array of sets) from the server
   const fetchWorkoutAnalysis = async () => {
     try {
-      const response = await axios.get('http://18.134.249.18:80/api/workout_analysis', {
+      const response = await axios.get('http://3.10.117.27:80/api/analysis', {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -33,10 +33,10 @@ const WorkoutAnalysis: React.FC = () => {
       // Assuming response.data is an array of set objects:
       setSets(response.data);
     } catch (err) {
-      console.error('Error fetching workout analysis:', err);
-      setError('Failed to load workout analysis data.');
+      return null;
     } finally {
       setLoading(false);
+      return null;
     }
   };
 
@@ -62,21 +62,18 @@ const WorkoutAnalysis: React.FC = () => {
   }
 
   if (sets.length === 0) {
-    return (
-      <View style={styles.emptyContainer}>
-        <Text style={styles.emptyText}>No workout sets found.</Text>
-        <Text style={styles.emptySubtext}>
-          You haven't done any workouts yet. Please start a new workout in the Workout tab!
-        </Text>
-        <TouchableOpacity
-          style={styles.startWorkoutButton}
-          onPress={() => router.push('./workout')}
-        >
-          <Text style={styles.startWorkoutButtonText}>Go to Workout</Text>
-        </TouchableOpacity>
-      </View>
-    );
-  }
+      return (
+        <View style={styles.emptyContainer}>
+          <Text style={styles.emptyText}>No workouts found :(</Text>
+          <Text style={styles.emptySubtext}>
+            Start a new workout by navigating to the "New Workout" tab!
+          </Text>
+          <TouchableOpacity style={styles.startWorkoutButton} onPress={() => router.push('./workout')}>
+            <Text style={styles.startWorkoutButtonText}>Start Workout</Text>
+          </TouchableOpacity>
+        </View>
+      );
+    }
 
   return (
     <ScrollView style={styles.container}>
