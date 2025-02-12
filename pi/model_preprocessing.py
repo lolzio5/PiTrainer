@@ -1,6 +1,7 @@
 import numpy as np
 import json
 from scipy.stats import skew, kurtosis
+from rep_analysis import SetData
 
 def line_to_axes(line: list[ list[float, float, float] ]) -> tuple[ list[float], list[float], list[float] ]:
     x = [line[i][0] for i in range(len(line))]
@@ -22,7 +23,7 @@ def extract_features(sig: list[float]) -> dict[str, float]:
     }
 
 
-def process_data_to_dict(accel3d, vel3d, pos3d, mag3d):
+def process_rep_to_dict(accel3d, vel3d, pos3d, mag3d):
     accel = line_to_axes(accel3d)
     vel = line_to_axes(vel3d)
     pos = line_to_axes(pos3d)

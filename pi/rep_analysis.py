@@ -73,6 +73,7 @@ def zscore_to_percentile(score: float) -> float:
 
 def find_highest_peak(sig : list[float], offset : int):
     tmp_peaks, peak_props = signal.find_peaks(sig,0.001)
+    print(f'tmp_peaks: {tmp_peaks} \n peaks_props: {peak_props}')
     highest = np.argmax(peak_props["peak_heights"])
     return int(tmp_peaks[highest] + offset)
 
@@ -91,7 +92,7 @@ def sort_reps(data: SetData, reps_live : list[int] , sel):
 
     return pos_peaks
 
-# VERIFY THIS
+
 def separate_reps(data: SetData, sel):
     data.rep_indices = sort_reps(data, data.rep_indices, sel)
     indices = data.rep_indices
@@ -106,7 +107,7 @@ def separate_reps(data: SetData, sel):
         pos_reps.append( data.pos[indices[i] : indices[i+1]] )
         magn_reps.append( data.magn[indices[i] : indices[i+1]] )
 
-    return accel_reps, vel_reps, pos_reps, magn_reps, indices
+    return accel_reps, vel_reps, pos_reps, magn_reps, data
 
 
 #Returns percentage score of how consistent the distance travelled in reps is
@@ -217,27 +218,58 @@ def pos_time_shak_to_overall_score(pos_score, time_score, shakiness_score):
     return 0.6*time_score + 0.2*pos_score + 0.2*shakiness_score
 
 
-def give_feedback(data : SetData, exercise : Workout):
-    accel_reps, _, pos_reps, _, data, reps = separate_reps(data, exercise.select)
-
+def give_feedback(data : SetData, exercise : Workout) -> dict[str, float|str]:
+    accel_reps, _, pos_reps, _, data = separate_reps(data, exercise.select)
+    reps = data.rep_indices
     feedback = []
-    score = []
+    rep_scores = []
     num_reps = len(reps)
 
-    dist_scores = distance_analysis(pos_reps) # verify this, idk how to use this one
+    dist_scores = distance_analysis(pos_reps)
     time_consistency_scores = time_consistency_analysis(data.sample_times, reps)
     shakiness_scores = shakiness_analysis(accel_reps)
 
 
-    [score.append(pos_time_shak_to_overall_score(dist_scores[i],time_consistency_scores[i],shakiness_scores[i])) for i in range(0,num_reps-1)]
+    [rep_scores.append(pos_time_shak_to_overall_score(dist_scores[i],time_consistency_scores[i],shakiness_scores[i])) for i in range(0,num_reps-1)]
+    # rep_scores = [pos_time_shak_to_overall_score(dist_scores[i],time_consistency_scores[i],shakiness_scores[i]) for i in range(num_reps)]
     feedback = {
-        "score" : score,
-        "distance" : pos_score_to_feedback(np.mean(dist_scores)),
-        "time_consistency" : time_score_to_feedback(np.mean(time_consistency_scores)),
-        "shakiness" : shakiness_score_to_feedback(np.mean(shakiness_scores))
+        "score" : np.mean(rep_scores),
+        "distance_score": np.mean(dist_scores),
+        "distance_feedback" : pos_score_to_feedback(np.mean(dist_scores)),
+        "time_consistency_score": np.mean(time_consistency_scores),
+        "time_consistency_feedback" : time_score_to_feedback(np.mean(time_consistency_scores)),
+        "shakiness_score": np.mean(shakiness_scores),
+        "shakiness_feedback" : shakiness_score_to_feedback(np.mean(shakiness_scores))
     }
 
     return feedback
+
+def workout_feedback(feedbacks: list[ dict[str, float | str] ]):
+    sorted_feedbacks = sorted(feedbacks, key=lambda x: x['score'])
+    worst_feedback = sorted_feedbacks[-1]
+
+    worst_feature, _ = min(worst_feedback.items(), key=lambda x: x[1] if not isinstance(x[0], str) else -np.inf)
+    worst_feature = worst_feature.replace('score', '')
+    worst_feature += 'feedback'
+    displayed_feedback = worst_feedback[worst_feature]
+
+    overall_score = np.mean( [feedback['score'] for feedback in feedbacks] )
+    overall_dist_score = np.mean( [feedback['distance_score'] for feedback in feedbacks] )
+    overall_time_score = np.mean( [feedback['time_consistency_score'] for feedback in feedbacks] )
+    overall_shakiness_score = np.mean( [feedback['shakiness_score'] for feedback in feedbacks] )
+
+    main_feedback = {
+        'score': overall_score,
+        'distance_score': overall_dist_score,
+        'distance_feedback': pos_score_to_feedback(overall_dist_score),
+        "time_consistency_score": overall_time_score,
+        "time_consistency_feedback" : time_score_to_feedback(overall_time_score),
+        "shakiness_score": overall_shakiness_score,
+        "shakiness_feedback" : shakiness_score_to_feedback(overall_shakiness_score),
+        'displayed_feedback': displayed_feedback
+    }
+
+    return main_feedback
 
 
 #################################################
