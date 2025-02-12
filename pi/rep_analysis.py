@@ -72,9 +72,11 @@ def zscore_to_percentile(score: float) -> float:
     return norm.sf(abs(score))*100
 
 def find_highest_peak(sig : list[float], offset : int):
-    tmp_peaks, peak_props = signal.find_peaks(sig,0.001)
+    tmp_peaks, peak_props = signal.find_peaks(sig, -1 * np.inf)
     print(f'tmp_peaks: {tmp_peaks} \n peaks_props: {peak_props}')
-    highest = np.argmax(peak_props["peak_heights"])
+    if peak_props['peak_heights'] == []:
+        return int(offset)
+    highest = np.argmax(peak_props["peak_heights"]) if tmp_peaks is not None else 0
     return int(tmp_peaks[highest] + offset)
 
 
@@ -85,10 +87,14 @@ def sort_reps(data: SetData, reps_live : list[int] , sel):
     # print(f'vel_smoothed shape: {np.shape(vel_smoothed)}')
     pos_peaks = []
     reps_live = data.rep_indices
-    for i in range(0,len(reps_live)-2):
-        current = int(reps_live[i])
-        next = int(reps_live[i+1])
-        pos_peaks.append(find_highest_peak(vel_smoothed[current:next],current))
+    reps_live.insert(0, 0)
+    for i in range(1, len(reps_live)):
+        current = int(reps_live[i-1])
+        next = int(reps_live[i])
+        window = vel_smoothed[current:next]
+        if not window:
+            continue
+        pos_peaks.append(find_highest_peak(window,current))
 
     return pos_peaks
 
@@ -218,15 +224,16 @@ def pos_time_shak_to_overall_score(pos_score, time_score, shakiness_score):
     return 0.6*time_score + 0.2*pos_score + 0.2*shakiness_score
 
 
-def give_feedback(data : SetData, exercise : Workout) -> dict[str, float|str]:
-    accel_reps, _, pos_reps, _, data = separate_reps(data, exercise.select)
-    reps = data.rep_indices
+# def give_feedback(data : SetData, exercise : Workout) -> dict[str, float|str]:
+def give_feedback(accel_reps, vel_reps, pos_reps, mag_reps, sample_times, rep_indices) -> dict[str, float|str]:
+    # accel_reps, _, pos_reps, _, data = separate_reps(data, exercise.select)
+    reps = rep_indices
     feedback = []
     rep_scores = []
     num_reps = len(reps)
 
     dist_scores = distance_analysis(pos_reps)
-    time_consistency_scores = time_consistency_analysis(data.sample_times, reps)
+    time_consistency_scores = time_consistency_analysis(sample_times, reps)
     shakiness_scores = shakiness_analysis(accel_reps)
 
 
@@ -245,13 +252,16 @@ def give_feedback(data : SetData, exercise : Workout) -> dict[str, float|str]:
     return feedback
 
 def workout_feedback(feedbacks: list[ dict[str, float | str] ]):
-    sorted_feedbacks = sorted(feedbacks, key=lambda x: x['score'])
-    worst_feedback = sorted_feedbacks[-1]
-
-    worst_feature, _ = min(worst_feedback.items(), key=lambda x: x[1] if not isinstance(x[0], str) else -np.inf)
-    worst_feature = worst_feature.replace('score', '')
-    worst_feature += 'feedback'
-    displayed_feedback = worst_feedback[worst_feature]
+    # sorted_feedbacks = sorted(feedbacks, key=lambda x: x['score'])
+    # worst_feedback = sorted_feedbacks[-1]
+    # print(worst_feedback)
+    # worst_feature, _ = min(worst_feedback.items(), key=lambda x: x[1] if not isinstance(x[1], str) else -np.inf)
+    # print(f'worst_feature: {worst_feature}')
+    # worst_feature = worst_feature.replace('score', '')
+    # print(f'worst_feature: {worst_feature}')
+    # worst_feature = worst_feature + 'feedback'
+    # print(f'worst_feature: {worst_feature}')
+    # displayed_feedback = worst_feedback[worst_feature]
 
     overall_score = np.mean( [feedback['score'] for feedback in feedbacks] )
     overall_dist_score = np.mean( [feedback['distance_score'] for feedback in feedbacks] )
@@ -265,8 +275,7 @@ def workout_feedback(feedbacks: list[ dict[str, float | str] ]):
         "time_consistency_score": overall_time_score,
         "time_consistency_feedback" : time_score_to_feedback(overall_time_score),
         "shakiness_score": overall_shakiness_score,
-        "shakiness_feedback" : shakiness_score_to_feedback(overall_shakiness_score),
-        'displayed_feedback': displayed_feedback
+        "shakiness_feedback" : shakiness_score_to_feedback(overall_shakiness_score)
     }
 
     return main_feedback

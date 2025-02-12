@@ -30,8 +30,8 @@ def get_workout_state() -> str:
     return r['response']
 
 ## MODIFIY
-def send_workout_data(all_sets_data: list[dict], feedback: dict, workout_name: str) -> str:
-    json_data = feedback
+def send_workout_data(all_sets_data: list[dict], workout_name: str) -> str:
+    json_data = {}
     json_data['sets_data'] = all_sets_data
     json_data['pi_id'] = USER
     json_data['name'] = workout_name
@@ -43,7 +43,7 @@ def send_set_data(feedback: dict[str, float|str]) -> str:
     json_data = feedback
     json_data['pi_id'] = USER
 
-    r = requests.post(url=f'{BACKEND_URL}/pianal', data=json_data)
+    r = requests.post(url=f'{BACKEND_URL}/anal', data=json_data)
     return r.text
 
 
@@ -136,18 +136,24 @@ def main() -> None:
                     continue
                 if previous_workout_state != 'Pseudo Idle':
                     # package last set
-                    feedback = give_feedback(data, current_workout)
-                    current_workout_feedbacks.append(feedback)
+                    # Sort Reps
+                    accel_reps, vel_reps, pos_reps, mag_reps, data = separate_reps(data, current_workout.select)
+                    # DATA.REP_INDICES ARE NOW UPDATED!! 
+                    num_reps = len(accel_reps)
+                    print(f'num_reps: {num_reps}')
+                    for i in range(num_reps):
+                        workout_features_per_set.append(
+                            process_rep_to_dict(accel_reps[i], vel_reps[i], pos_reps[i], mag_reps[i])
+                        )
 
-                    accel_reps, vel_reps, pos_reps, mag_reps = separate_reps(data, current_workout.select)
-                    num_reps = current_workout.count
-                    workout_features_per_set.append(
-                        [process_rep_to_dict(accel_reps[i], vel_reps[i], pos_reps[i], mag_reps[i]) for i in range(num_reps)]
-                    )
+                    feedback = give_feedback(accel_reps, vel_reps, pos_reps, mag_reps, 
+                                            data.sample_times, data.rep_indices)
+                    print(f'feedback calculated: {feedback}')
+                    current_workout_feedbacks.append(feedback)
                 
                 # Send WORKOUT DATA (multiple sets)
-                overall_feedback = workout_feedback(current_workout_feedbacks)
-                send_workout_data(workout_features_per_set, overall_feedback, current_workout.workout)
+                # overall_feedback = workout_feedback(current_workout_feedbacks)
+                send_workout_data(workout_features_per_set, current_workout.workout)
 
                 set_count = 0
                 workout_features_per_set.clear()
@@ -164,15 +170,19 @@ def main() -> None:
                 if previous_workout_state == current_workout_state or previous_workout_state == 'Idle':
                     continue
                 # Sort Reps
-                feedback = give_feedback(data, current_workout)
+                accel_reps, vel_reps, pos_reps, mag_reps, data = separate_reps(data, current_workout.select)
+                # DATA.REP_INDICES ARE NOW UPDATED!! 
+                num_reps = len(accel_reps)
+                print(f'num_reps: {num_reps}')
+                for i in range(num_reps):
+                    workout_features_per_set.append(
+                        process_rep_to_dict(accel_reps[i], vel_reps[i], pos_reps[i], mag_reps[i])
+                    )
+
+                feedback = give_feedback(accel_reps, vel_reps, pos_reps, mag_reps, 
+                                         data.sample_times, data.rep_indices)
                 print(f'feedback calculated: {feedback}')
                 current_workout_feedbacks.append(feedback)
-
-                accel_reps, vel_reps, pos_reps, mag_reps, data = separate_reps(data, current_workout.select)
-                num_reps = len(accel_reps)
-                workout_features_per_set.append(
-                    [process_rep_to_dict(accel_reps[i], vel_reps[i], pos_reps[i], mag_reps[i]) for i in range(num_reps-1)]
-                )
 
                 send_set_data(feedback)
 
