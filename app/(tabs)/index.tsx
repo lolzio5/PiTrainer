@@ -164,7 +164,7 @@ export default function Dashboard() {
             <PieChart
               data={workoutData.chartData}
               width={Dimensions.get('window').width - 40} // Dynamic width (screen width minus padding)
-              height={220}
+              height={200}
               chartConfig={{
                 backgroundGradientFrom: '#fff',
                 backgroundGradientTo: '#fff',
@@ -176,7 +176,7 @@ export default function Dashboard() {
               absolute // Show actual values instead of percentages
             />
             <Text style={styles.totalRepsText}>Total Reps: {workoutData.totalReps}</Text>
-            <Text style={styles.totalRepsText}>{feedback}</Text>
+            <Text style={styles.feedbackText}>{feedback}</Text>
           </>
         ) : (
           <Text>Failed to load workout data.</Text>
@@ -246,7 +246,7 @@ export default function Dashboard() {
     },
     pieChartContainer: {
       backgroundColor: '#fff',
-      padding: 20,
+      padding: 15,
       borderRadius: 8,
       shadowColor: '#000',
       shadowOffset: { width: 0, height: 1 },
@@ -260,10 +260,16 @@ export default function Dashboard() {
     chartHeader: {
       fontSize: 16,
       fontWeight: 'bold',
-      marginBottom: 10,
+      marginBottom: 0,
     },
     totalRepsText: {
       fontSize: 14,
+      paddingBottom: 5,
+      fontWeight: 'bold',
+    },
+    feedbackText: {
+      fontSize: 14,
+      paddingBottom: 5,
     },
     bestWorkoutContainer: {
       justifyContent: 'center',

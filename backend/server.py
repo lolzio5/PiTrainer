@@ -134,7 +134,7 @@ def signup():
 
     user_id=register_user(email, password, pi_id, users_table)
     access_token = create_access_token(identity=email)
-    #generate_mock_data(email)
+    generate_mock_data(email)
     print(f"Registered {email}!")
     return jsonify({"access_token": access_token}), 200
 
