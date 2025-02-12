@@ -377,7 +377,11 @@ def process_data():
             'mag_y': data.get('mag_y'),
             'mag_z': data.get('mag_z')
         }
-        data_to_predict=pd.Dataframe(formatted_data)
+        flattened = {f"{outer}{inner}": value 
+             for outer, subdict in formatted_data.items() 
+             for inner, value in subdict.items()}
+        
+        data_to_predict=pd.Dataframe(flattened)
         
         # Predict the rep quality using saved model weights
         if workout_name=="Seated Cable Rows":
