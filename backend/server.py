@@ -283,6 +283,7 @@ def start_set():
 def end_workout():
     current_user = get_jwt_identity()
     global_reps[current_user]['workout']=False
+    global_reps[current_user]['set']=False
     return jsonify("Workout Ended")
 
 
@@ -311,7 +312,7 @@ def pi_poll():
             return jsonify({"response": "Idle"})  # If pi_id is not found, return "Idle"
         if global_reps[current_user]['workout'] and global_reps[current_user]['set']:
             return jsonify({"response":global_reps[current_user]['exercise']})
-        elif global_reps[current_user]['set']==False:
+        elif global_reps[current_user]['workout'] and global_reps[current_user]['set']==False:
             return jsonify({"response":"Pseudo Idle"})
         return jsonify({"response":"Idle"})
     except Exception as e:

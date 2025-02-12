@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useCallback } from 'react';
 import { View, Text, ScrollView, StyleSheet, ActivityIndicator, TouchableOpacity } from 'react-native';
 import axios from 'axios';
 import { useAuth } from '../context';
 import { router } from 'expo-router';
+import { useFocusEffect } from '@react-navigation/native';
 
 interface WorkoutSet {
   WorkoutID: string;
@@ -40,9 +41,11 @@ const WorkoutAnalysis: React.FC = () => {
     }
   };
 
-  useEffect(() => {
-    fetchWorkoutAnalysis();
-  }, [token]);
+  useFocusEffect(
+    useCallback(() => {
+      fetchWorkoutAnalysis();
+    }, [fetchWorkoutAnalysis])
+  );
 
   if (loading) {
     return (
