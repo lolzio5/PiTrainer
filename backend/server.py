@@ -223,7 +223,6 @@ def get_home():
 def get_analysis():
     current_user = get_jwt_identity()  # Get the logged-in user's ID
     workout_id=global_user_workouts.get(current_user)
-    print(workout_id)
     if workout_id is not None:
         # Query all workouts for the user, sorted by date
         response = set_table.query(
@@ -233,8 +232,6 @@ def get_analysis():
         items = response.get("Items", [])
         if not items:
             return jsonify({"error": "No analysis found for this workout"}), 404
-        #global_user_workouts.pop(current_user)
-        print(items)
         return jsonify(items)
     else:
 
@@ -372,24 +369,23 @@ def process_data():
     try:
         # Parse incoming form data
         data = request.json
-
         workout_name = data.get('name')
         pi_id=data.get('pi_id')
         current_user = user_pi_id.get(pi_id)
-        feedback=data.get('feedback')
+        all_sets_data= data.get('sets_data')
         formatted_data={
-            'accel_x': data.get('accel_x'),
-            'accel_y': data.get('accel_y'),
-            'accel_z': data.get('accel_z'),
-            'vel_x': data.get('vel_x'),
-            'vel_y': data.get('vel_y'),
-            'vel_z': data.get('vel_z'),
-            'pos_x': data.get('pos_x'),
-            'pos_y': data.get('pos_y'),
-            'pos_z': data.get('pos_z'),
-            'mag_x': data.get('mag_x'),
-            'mag_y': data.get('mag_y'),
-            'mag_z': data.get('mag_z')
+            'accel_x': all_sets_data.get('accel_x'),
+            'accel_y': all_sets_data.get('accel_y'),
+            'accel_z': all_sets_data.get('accel_z'),
+            'vel_x': all_sets_data.get('vel_x'),
+            'vel_y': all_sets_data.get('vel_y'),
+            'vel_z': all_sets_data.get('vel_z'),
+            'pos_x': all_sets_data.get('pos_x'),
+            'pos_y': all_sets_data.get('pos_y'),
+            'pos_z': all_sets_data.get('pos_z'),
+            'mag_x': all_sets_data.get('mag_x'),
+            'mag_y': all_sets_data.get('mag_y'),
+            'mag_z': all_sets_data.get('mag_z')
         }
         flattened = {f"{outer}{inner}": value 
              for outer, subdict in formatted_data.items() 
@@ -418,7 +414,6 @@ def process_data():
             "exercise": workout_name,
             "rep_number": len(rep_qualities),
             "rep_quality": rep_qualities,
-            "feedback": feedback
         }
 
         workouts_table.put_item(Item=workout_item)
