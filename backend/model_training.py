@@ -2,7 +2,6 @@ import pandas as pd
 import numpy as np
 from sklearn.ensemble import RandomForestRegressor
 from xgboost import XGBRegressor
-import booster
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 from sklearn.model_selection import GridSearchCV
@@ -123,5 +122,3 @@ plt.figure(figsize=(10, 6))
 feature_importance.sort_values().plot(kind='barh')
 plt.title('Feature Importance')
 plt.show()
-
-booster.save_model('seated_cable_rows.json')

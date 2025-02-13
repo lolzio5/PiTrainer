@@ -15,7 +15,7 @@ from decimal import Decimal
 
 # ssh -i "C:\Users\themi\Downloads\piTrainerKey.pem" ubuntu@3.10.117.27
 app = Flask(__name__)
-CORS(app)  # Enable CORS for frontend requests
+CORS(app)
 app.config["JWT_SECRET_KEY"] = "supersecretkey"
 jwt = JWTManager(app)
 

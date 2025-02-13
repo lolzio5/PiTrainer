@@ -105,49 +105,39 @@ def separate_reps(data: SetData, sel):
     data.rep_indices = sort_reps(data, data.rep_indices, sel)
     indices = data.rep_indices
 
-    accel_reps = []
-    vel_reps = []
-    pos_reps = []
-    magn_reps = []
-    for i in range(len(indices)-1):
-        accel_reps.append( data.accel[indices[i] : indices[i+1]] )
-        vel_reps.append( data.vel[indices[i] : indices[i+1]] )
-        pos_reps.append( data.pos[indices[i] : indices[i+1]] )
-        magn_reps.append( data.magn[indices[i] : indices[i+1]] )
-
-    accel_reps.append( data.accel[indices[-1] :] )
-    vel_reps.append( data.vel[indices[-1] :] )
-    pos_reps.append( data.pos[indices[-1] :] )
-    magn_reps.append( data.magn[indices[-1] :] )
+    # Split along the reps
+    accel_reps = np.split(data.accel, indices[1:])
+    vel_reps   = np.split(data.vel, indices[1:])
+    pos_reps   = np.split(data.pos, indices[1:])
+    magn_reps  = np.split(data.magn, indices[1:])
 
     return accel_reps, vel_reps, pos_reps, magn_reps, data
 
 
 #Returns percentage score of how consistent the distance travelled in reps is
 def distance_analysis(pos_reps) -> list[float]:
-    num_reps = len(pos_reps)
-    # pos_reps = num_reps x num_points x 3   --> pos_reps = num_reps x 3 x num_points
-    pos_reps = [[isolate_axis(pos_reps[i], 0), isolate_axis(pos_reps[i], 1), isolate_axis(pos_reps[i], 2)] for i in range(num_reps)]
-    pos_ranges = []
-    for i in range(num_reps): # num_reps x 3
-        pos_ranges.append([
-            np.max(pos_reps[i][0]) - np.min(pos_reps[i][0]),
-            np.max(pos_reps[i][1]) - np.min(pos_reps[i][1]),
-            np.max(pos_reps[i][2]) - np.min(pos_reps[i][2])
-        ])
-
-    xranges = isolate_axis(pos_ranges, 0)
-    yranges = isolate_axis(pos_ranges, 1)
-    zranges = isolate_axis(pos_ranges, 2)
-
-    pos_zscores = join_axis(
-            zscore(xranges),
-            zscore(yranges),
-            zscore(zranges)
-    )
-
-    rep_scores = [np.mean(pos_zscores[i]) for i in range(num_reps)]
-    # print(f'rep_scores: {rep_scores}')
+    # Convert the list-of-lists to a NumPy array.
+    # Expected shape: (num_reps, num_points, 3)
+    pos_reps_arr = np.array(pos_reps)
+    
+    # Compute the range (max - min) along the points axis (axis=1)
+    # np.ptp (peak-to-peak) does exactly this.
+    # Resulting shape: (num_reps, 3) for x, y, z ranges.
+    pos_ranges = np.ptp(pos_reps_arr, axis=1)
+    
+    # Compute z-scores across reps for each axis separately.
+    # Each column in pos_ranges corresponds to an axis.
+    x_z = zscore(pos_ranges[:, 0])
+    y_z = zscore(pos_ranges[:, 1])
+    z_z = zscore(pos_ranges[:, 2])
+    
+    # Stack the three z-score arrays into a 2D array (num_reps x 3)
+    pos_zscores = np.column_stack((x_z, y_z, z_z))
+    
+    # Compute the mean z-score for each rep.
+    rep_scores = np.mean(pos_zscores, axis=1)
+    
+    # Convert each rep's score from z-score to percentile.
     return [zscore_to_percentile(score) for score in rep_scores]
     
 
@@ -158,40 +148,34 @@ def time_consistency_analysis(t, reps):
     return [100*r_value**2 for _ in range(num_reps)]
 
 
-def shakiness_analysis(accel_reps, dt:float=1):
-    # shakiness = [np.var(vel[rep[0]:rep[1]]) for rep in reps]
-    # return [100*(1/(1+shak)) for shak in shakiness]
+def shakiness_analysis(accel_reps, dt: float = 1):
     rep_nb = len(accel_reps)
-    accel_reps = [[isolate_axis(accel_reps[i], 0), isolate_axis(accel_reps[i], 1), isolate_axis(accel_reps[i], 2)] for i in range(rep_nb)]
-    # print(f'accel_reps shape: {np.shape(accel_reps)}')
-    jerk_reps = [] # num_reps x 3 x num_points
-    for i in range(rep_nb):
-        jerk_reps.append([np.diff(accel_reps[i][0])/dt, 
-                          np.diff(accel_reps[i][1])/dt, 
-                          np.diff(accel_reps[i][2])/dt])
+    # Preallocate an array for the jerk ranges (one per rep and per axis)
+    jerk_ranges = np.empty((rep_nb, 3))
+    
+    # Loop over reps (each rep can be of variable length)
+    for i, rep in enumerate(accel_reps):
+        # Convert the rep (list of [ax, ay, az]) into a NumPy array of shape (num_points, 3)
+        rep_arr = np.asarray(rep)
+        # Compute jerk: the derivative of acceleration (np.diff works along the time axis, axis=0)
+        jerk = np.diff(rep_arr, axis=0) / dt
+        # Compute the peak-to-peak (max-min) range for each axis (x, y, z)
+        jerk_ranges[i, :] = np.ptp(jerk, axis=0)  # np.ptp computes max - min along axis=0
 
-    jerk_ranges = [] # num_reps x 3
-    for i in range(rep_nb):
-        jerk_ranges.append([np.max(jerk_reps[i][0]) - np.min(jerk_reps[i][0]),
-                            np.max(jerk_reps[i][1]) - np.min(jerk_reps[i][1]),
-                            np.max(jerk_reps[i][2]) - np.min(jerk_reps[i][2])])
-
-    # print(f'jerk_ranges shape: {np.shape(jerk_ranges)}')
-
-    xjerk_ranges = isolate_axis(jerk_ranges, 0)
-    yjerk_ranges = isolate_axis(jerk_ranges, 1)
-    zjerk_ranges = isolate_axis(jerk_ranges, 2)
-
-    jerk_scores = join_axis(
-        zscore(xjerk_ranges),
-        zscore(yjerk_ranges),
-        zscore(zjerk_ranges)
-    )
-
-    # print(f'jerk_scores shape: {np.shape(jerk_scores)}')
-        
-    rep_scores = [np.mean(jerk_scores[i]) for i in range(rep_nb)]
-
+    # Compute z-scores for each axis across all reps.
+    # Each column in jerk_ranges corresponds to one axis.
+    x_z = zscore(jerk_ranges[:, 0])
+    y_z = zscore(jerk_ranges[:, 1])
+    z_z = zscore(jerk_ranges[:, 2])
+    
+    # Combine the z-scores into a (rep_nb, 3) array
+    combined_z = np.column_stack((x_z, y_z, z_z))
+    
+    # Compute the mean z-score for each rep across the three axes.
+    rep_scores = np.mean(combined_z, axis=1)
+    
+    # Convert each rep's z-score to a percentile and subtract from 100.
+    # (Assuming zscore_to_percentile is defined elsewhere.)
     return [100 - zscore_to_percentile(score) for score in rep_scores]
 
 
