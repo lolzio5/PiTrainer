@@ -6,6 +6,7 @@ from database import create_database_table, create_user_table, delete_table, cre
 import boto3
 from login import register_user, verify_user
 from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity
+from analysis import calculate_lifetime_metrics, calculate_rep_qualities
 import uuid
 import pickle
 import pandas as pd
@@ -15,120 +16,40 @@ from decimal import Decimal
 # ssh -i "C:\Users\themi\Downloads\piTrainerKey.pem" ubuntu@3.10.117.27
 app = Flask(__name__)
 CORS(app)  # Enable CORS for frontend requests
-app.config["JWT_SECRET_KEY"] = "supersecretkey"  # Change this in production!
+app.config["JWT_SECRET_KEY"] = "supersecretkey"
 jwt = JWTManager(app)
 
+# Allows correct parsing from Float to Decimal
 context = decimal.getcontext()
 context.traps[decimal.Inexact] = False
 context.traps[decimal.Rounded] = False
 
 # Connect the DynamoDB
 dynamodb = boto3.resource('dynamodb', region_name='us-east-1')
+
+# Delete tables
 #delete_table("UserData")
 #delete_table("Users")
 #delete_table("SetData")
+
+# Create tables
 workouts_table = dynamodb.Table("UserData")
 users_table = dynamodb.Table("Users")
 set_table = dynamodb.Table("SetData")
-
-# Global dictionary to store the reps of all users
-global_reps = {}
-user_pi_id={}
-global_user_workouts={}
-
-# Mock workout data
-def generate_rep_quality(min_val, max_val, num_reps=50):
-    output=[]
-    for _ in range(num_reps):
-        output.append(random.randint(min_val, max_val))
-    return output
-
-# Function to calculate total workout metrics
-def calculate_lifetime_metrics(workouts):
-    total_reps = sum(workout["rep_number"] for workout in workouts)
-    total_workouts = len(workouts)
-    total_calories = round(float(total_reps) * 0.1, 2)  # Estimate: 0.1 calories per rep
-
-    # Flatten all rep qualities into one list and compute average
-    all_rep_qualities = [rep for workout in workouts for rep in workout["rep_quality"]]
-    avg_rep_quality = round(sum(all_rep_qualities) / len(all_rep_qualities), 2) if all_rep_qualities else 0
-
-    # Find best workout (highest avg rep quality)
-    best_workout = max(workouts, key=lambda w: sum(w["rep_quality"]) / len(w["rep_quality"]))
-
-    return {
-        "total_reps": int(total_reps),
-        "total_workouts": int(total_workouts),
-        "total_calories_burned": float(total_calories),
-        "lifetime_avg_rep_quality": float(avg_rep_quality),
-        "best_workout": {
-            "date": best_workout["date"],
-            "exercise": best_workout["exercise"],
-            "avg_rep_quality": float(round(sum(best_workout["rep_quality"]) / len(best_workout["rep_quality"]), 2))
-        }
-    }
-
-def calculate_rep_qualities(last_workout):
-    rep_quality = last_workout['rep_quality']
-        
-    # Initialize counters for each quality
-    perfect_count = 0
-    good_count = 0
-    fair_count = 0
-    poor_count = 0
-        
-    # Classify each rep into one of the quality categories
-    for quality in rep_quality:
-        if quality > 70:
-            perfect_count += 1
-        elif 60 <= quality <= 70:
-            good_count += 1
-        elif 50 <= quality < 60:
-            fair_count += 1
-        else:
-            poor_count += 1
-        
-        # Structure the workout qualities in the required format
-    return [
-        {"quality": "Perfect", "reps": perfect_count},
-        {"quality": "Good", "reps": good_count},
-        {"quality": "Fair", "reps": fair_count},
-        {"quality": "Poor", "reps": poor_count}
-    ]
-
-def generate_mock_data(email):
-    # Create mock workouts
-    workouts = [
-    {
-        "id": str(uuid.uuid4()) ,
-        "date": (datetime(2025, 1, 15) + timedelta(days=i)).strftime("%Y-%m-%d"),
-        "rep_number": 50,
-        "exercise": "Triceps Extension",
-        "rep_quality": generate_rep_quality(50 - (i * 5), 95 - (i * 5))
-    }
-    for i in range(5)
-    ]
-    for data in workouts:
-
-        workout_item = {
-            "UserID": email,  # Associate workout with logged-in user
-            "WorkoutID": data['id'],
-            "date": data["date"],
-            "exercise": data["exercise"],
-            "rep_number": data["rep_number"],
-            "rep_quality": data["rep_quality"],
-            "feedback": "You're having trouble maintaining smooth movements throughout the reps. Try to keep your movements smoother."
-        }
-
-        workouts_table.put_item(Item=workout_item)  # Store in DynamoDB
-    return jsonify({"message": "Workout added successfully!"}), 201
 
 def initialize_tables():
     create_database_table(dynamodb)
     create_user_table(dynamodb)
     create_set_table(dynamodb)
 
-# Routes for the mobile app
+# Global dictionaries to store the reps of all users, Pi IDs, and the last workouts IDs
+global_reps = {}
+user_pi_id={}
+global_user_workouts={}
+
+
+############ MOBILE APP ROUTES ############
+
 @app.route("/api/signup", methods=["POST"])
 def signup():
     data = request.json
@@ -143,8 +64,6 @@ def signup():
 
     user_id=register_user(email, password, pi_id, users_table)
     access_token = create_access_token(identity=email)
-    #generate_mock_data(email)
-    #print(f"Registered {email}!")
     return jsonify({"access_token": access_token}), 200
 
 @app.route("/api/login", methods=["POST"])
@@ -210,11 +129,9 @@ def get_home():
         
     # Calculate lifetime metrics as you previously did
     metrics = calculate_lifetime_metrics(items)
-    feedback=most_recent_workout['feedback']
     result={
         "lifetime_metrics": metrics,
-        "last_workout": workout_qualities,
-        "feedback": feedback
+        "last_workout": workout_qualities
     }
     return jsonify(result)
 
@@ -223,7 +140,6 @@ def get_home():
 def get_analysis():
     current_user = get_jwt_identity()  # Get the logged-in user's ID
     workout_id=global_user_workouts.get(current_user)
-    print(workout_id)
     if workout_id is not None:
         # Query all workouts for the user, sorted by date
         response = set_table.query(
@@ -233,12 +149,11 @@ def get_analysis():
         items = response.get("Items", [])
         if not items:
             return jsonify({"error": "No analysis found for this workout"}), 404
-        #global_user_workouts.pop(current_user)
-        print(items)
         return jsonify(items)
     else:
-
         return jsonify({"error": "No workout in progress"}), 404
+
+########## MOBILE CONTROL LOGIC ##########
 
 @app.route("/api/start", methods=["POST"])
 @jwt_required()
@@ -299,7 +214,8 @@ def end_workout():
     return jsonify("Workout Ended")
 
 
-# Routes for the Pi
+############ RASPBERRY PI ROUTES ############
+
 @app.route("/api/rep", methods=["POST"])
 def count_rep():
     try:
@@ -337,7 +253,6 @@ def analyse_data():
         pi_id = data.get("pi_id")
         current_user = user_pi_id.get(pi_id)
         workout_id=global_reps[current_user]['workoutID']
-        print(workout_id)
         global_user_workouts[current_user]=workout_id
         set_count = data.get("set_count")
         overall_score = data.get("score")
@@ -350,23 +265,21 @@ def analyse_data():
         set_item = {
                 "WorkoutID": workout_id,
                 "set_count": set_count,
-                "overall_score": Decimal(str(overall_score)),
-                "distance_score": Decimal(str(distance_score)),
+                "overall_score": Decimal(str(round(overall_score, ndigits=2))),
+                "distance_score": Decimal(str(round(distance_score, ndigits=2))),
                 "distance_feedback": distance_feedback,
-                "time_consistency_score": Decimal(str(consistency_score)),
+                "time_consistency_score": Decimal(str(round(consistency_score, ndigits=2))),
                 "time_consistency_feedback": consistency_feedback,
-                "shakiness_score": Decimal(str(shakiness_score)),
+                "shakiness_score": Decimal(str(round(shakiness_score, ndigits=2))),
                 "shakiness_feedback": shakiness_feedback
             }
         
         set_table.put_item(Item=set_item)
-        print("Set data added successfully!")
     except Exception as e:
         print(f"Error processing data: {e}")
         return jsonify({"error": "Failed to process data"}), 500
     return jsonify("success"), 200
     
-
 @app.route("/api/process", methods=["POST"])
 def process_data():
     try:
@@ -376,31 +289,33 @@ def process_data():
         workout_name = data.get('name')
         pi_id=data.get('pi_id')
         current_user = user_pi_id.get(pi_id)
-        feedback=data.get('feedback')
+        all_sets_data= data.get('sets_data')
         formatted_data={
-            'accel_x': data.get('accel_x'),
-            'accel_y': data.get('accel_y'),
-            'accel_z': data.get('accel_z'),
-            'vel_x': data.get('vel_x'),
-            'vel_y': data.get('vel_y'),
-            'vel_z': data.get('vel_z'),
-            'pos_x': data.get('pos_x'),
-            'pos_y': data.get('pos_y'),
-            'pos_z': data.get('pos_z'),
-            'mag_x': data.get('mag_x'),
-            'mag_y': data.get('mag_y'),
-            'mag_z': data.get('mag_z')
+            'accel_x': all_sets_data.get('accel_x'),
+            'accel_y': all_sets_data.get('accel_y'),
+            'accel_z': all_sets_data.get('accel_z'),
+            'vel_x': all_sets_data.get('vel_x'),
+            'vel_y': all_sets_data.get('vel_y'),
+            'vel_z': all_sets_data.get('vel_z'),
+            'pos_x': all_sets_data.get('pos_x'),
+            'pos_y': all_sets_data.get('pos_y'),
+            'pos_z': all_sets_data.get('pos_z'),
+            'mag_x': all_sets_data.get('mag_x'),
+            'mag_y': all_sets_data.get('mag_y'),
+            'mag_z': all_sets_data.get('mag_z')
         }
-        flattened = {f"{outer}{inner}": value 
+        flattened = {f"{outer}_{inner}": list(value) 
              for outer, subdict in formatted_data.items() 
              for inner, value in subdict.items()}
         
-        data_to_predict=pd.Dataframe(flattened)
-        
+        data_to_predict=pd.DataFrame(flattened)
+
         # Predict the rep quality using saved model weights
         if workout_name=="Seated Cable Rows":
-            model = pickle.load("seated_cable_rows.pkl")
-            rep_qualities=model.predict(data_to_predict)
+            with open("seated_cable_rows.pkl", "rb") as file:
+                model = pickle.load(file)
+                print(model)
+                rep_qualities=model.predict(data_to_predict)
         # elif workout_name=="Lat Pulldowns":
         #     model = pickle.load("lat_pulldowns.pkl")
         #     rep_qualities=model.predict(data)
@@ -410,17 +325,22 @@ def process_data():
         formatted_date = current_date.strftime('%Y-%m-%d')
         
         workout_id=global_reps[current_user]['workoutID']
+       
         # Save the workout in the database
+
+        int_qualities=[]
+        for i, value in enumerate(rep_qualities):
+            int_qualities.append(int(value))
+
         workout_item = {
             "UserID": current_user,
             "WorkoutID": workout_id,
             "date": formatted_date,
             "exercise": workout_name,
-            "rep_number": len(rep_qualities),
-            "rep_quality": rep_qualities,
-            "feedback": feedback
+            "rep_number": len(int_qualities),
+            "rep_quality": int_qualities,
         }
-
+        
         workouts_table.put_item(Item=workout_item)
         # Delete user data when workout is completed
         user_pi_id.pop(pi_id)

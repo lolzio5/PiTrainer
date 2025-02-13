@@ -16,7 +16,7 @@ All user data is securely stored on an Amazon Web Services database, associated 
 
 ### Mobile App
 
-Run the frontend app using `npm run android -- --tunnel` or `npm run android -- --tunnel` depending on which OS your user's phone runs. This will host the Expo app on your computer, which you can load on your phone using the Expo Go app. Just scan the QR code and it will automatically render on your phone!
+Run the frontend app using `npm run android -- --tunnel` or `npm run iOS -- --tunnel` depending on which OS your user's phone runs. This will host the Expo app on your computer, which you can load on your phone using the Expo Go app. Just scan the QR code and it will automatically render on your phone!
 
 The mobile app is entirely built in React Native, and handles login connections and rendering all the data.
 
