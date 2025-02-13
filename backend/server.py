@@ -223,16 +223,18 @@ def get_home():
 def get_analysis():
     current_user = get_jwt_identity()  # Get the logged-in user's ID
     workout_id=global_user_workouts.get(current_user)
+    print(workout_id)
     if workout_id is not None:
         # Query all workouts for the user, sorted by date
         response = set_table.query(
             KeyConditionExpression="WorkoutID = :id",
-            ExpressionAttributeValues={":id": current_user},
+            ExpressionAttributeValues={":id": workout_id},
         )
         items = response.get("Items", [])
         if not items:
             return jsonify({"error": "No analysis found for this workout"}), 404
         #global_user_workouts.pop(current_user)
+        print(items)
         return jsonify(items)
     else:
 
@@ -248,7 +250,7 @@ def start_workout():
         KeyConditionExpression="UserID = :user",
         ExpressionAttributeValues={":user": current_user},
     )
-    database_response.get("Items", [])
+    database_response=database_response.get("Items", [])
     pi_id=database_response[0]['pi_id']
     workout_id=str(uuid.uuid4())
     global_reps[current_user] = {

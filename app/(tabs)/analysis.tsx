@@ -1,5 +1,12 @@
-import React, { useState, useCallback } from 'react';
-import { View, Text, ScrollView, StyleSheet, ActivityIndicator, TouchableOpacity } from 'react-native';
+import React, { useState, useCallback, useEffect } from 'react';
+import { 
+  View, 
+  Text, 
+  FlatList, 
+  StyleSheet, 
+  ActivityIndicator, 
+  TouchableOpacity 
+} from 'react-native';
 import axios from 'axios';
 import { useAuth } from '../context';
 import { router } from 'expo-router';
@@ -27,30 +34,27 @@ const WorkoutAnalysis: React.FC = () => {
   const fetchWorkoutAnalysis = async () => {
     try {
       const response = await axios.get('http://3.10.117.27:80/api/analysis', {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { Authorization: `Bearer ${token}` },
       });
       // Assuming response.data is an array of set objects:
       setSets(response.data);
     } catch (err) {
-      return null;
+      setError('Failed to load workout analysis data.');
     } finally {
       setLoading(false);
-      return null;
     }
   };
 
   useFocusEffect(
     useCallback(() => {
       fetchWorkoutAnalysis();
-    }, [fetchWorkoutAnalysis])
+    }, [token])
   );
 
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#007AFF" />
+        <ActivityIndicator size="large" color="#fb8c00" />
         <Text style={styles.loadingText}>Loading workout analysis...</Text>
       </View>
     );
@@ -65,47 +69,55 @@ const WorkoutAnalysis: React.FC = () => {
   }
 
   if (sets.length === 0) {
-      return (
-        <View style={styles.emptyContainer}>
-          <Text style={styles.emptyText}>No workouts found :(</Text>
-          <Text style={styles.emptySubtext}>
-            Start a new workout by navigating to the "New Workout" tab!
-          </Text>
-          <TouchableOpacity style={styles.startWorkoutButton} onPress={() => router.push('./workout')}>
-            <Text style={styles.startWorkoutButtonText}>Start Workout</Text>
-          </TouchableOpacity>
-        </View>
-      );
-    }
+    return (
+      <View style={styles.emptyContainer}>
+        <Text style={styles.emptyText}>No workouts found :(</Text>
+        <Text style={styles.emptySubtext}>
+          Start a new workout by navigating to the "New Workout" tab!
+        </Text>
+        <TouchableOpacity style={styles.startWorkoutButton} onPress={() => router.push('./workout')}>
+          <Text style={styles.startWorkoutButtonText}>Start Workout</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  // Render item for FlatList
+  const renderItem = ({ item }: { item: WorkoutSet }) => (
+    <View style={styles.card}>
+      <Text style={styles.cardTitle}>Set {item.set_count}</Text>
+      <Text style={styles.cardText}>Overall Score: {item.overall_score}</Text>
+      
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Distance</Text>
+        <Text style={styles.cardText}>Score: {item.distance_score}</Text>
+        <Text style={styles.feedbackText}>{item.distance_feedback}</Text>
+      </View>
+
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Time Consistency</Text>
+        <Text style={styles.cardText}>Score: {item.time_consistency_score}</Text>
+        <Text style={styles.feedbackText}>{item.time_consistency_feedback}</Text>
+      </View>
+
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Shakiness</Text>
+        <Text style={styles.cardText}>Score: {item.shakiness_score}</Text>
+        <Text style={styles.feedbackText}>{item.shakiness_feedback}</Text>
+      </View>
+    </View>
+  );
 
   return (
-    <ScrollView style={styles.container}>
+    <View style={styles.container}>
       <Text style={styles.header}>Workout Analysis</Text>
-      {sets.map((setItem, index) => (
-        <View key={index} style={styles.card}>
-          <Text style={styles.cardTitle}>Set {setItem.set_count}</Text>
-          <Text style={styles.cardText}>Overall Score: {setItem.overall_score}</Text>
-          
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Distance</Text>
-            <Text style={styles.cardText}>Score: {setItem.distance_score}</Text>
-            <Text style={styles.feedbackText}>{setItem.distance_feedback}</Text>
-          </View>
-
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Time Consistency</Text>
-            <Text style={styles.cardText}>Score: {setItem.time_consistency_score}</Text>
-            <Text style={styles.feedbackText}>{setItem.time_consistency_feedback}</Text>
-          </View>
-
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Shakiness</Text>
-            <Text style={styles.cardText}>Score: {setItem.shakiness_score}</Text>
-            <Text style={styles.feedbackText}>{setItem.shakiness_feedback}</Text>
-          </View>
-        </View>
-      ))}
-    </ScrollView>
+      <FlatList
+        data={sets}
+        keyExtractor={(item) => item.WorkoutID + '-' + item.set_count}
+        renderItem={renderItem}
+        contentContainerStyle={{ paddingBottom: 20 }}
+      />
+    </View>
   );
 };
 
@@ -113,7 +125,8 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f5f5f5',
-    padding: 16,
+    paddingTop: 35,
+    paddingHorizontal: 16,
   },
   header: {
     fontSize: 24,

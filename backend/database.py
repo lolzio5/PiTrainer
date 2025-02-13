@@ -38,12 +38,14 @@ def create_set_table(dynamodb=None):
         return dynamodb.Table(table_name)
     
     table = dynamodb.create_table(
-        TableName='SetData',
+        TableName=table_name,
         KeySchema=[
-            {'AttributeName': 'WorkoutID', 'KeyType': 'HASH'},  # Primary Key
+            {'AttributeName': 'WorkoutID', 'KeyType': 'HASH'},  # Partition key
+            {'AttributeName': 'set_count', 'KeyType': 'RANGE'}    # Sort key
         ],
         AttributeDefinitions=[
-            {'AttributeName': 'WorkoutID', 'AttributeType': 'S'},  # String
+            {'AttributeName': 'WorkoutID', 'AttributeType': 'S'},  # String type
+            {'AttributeName': 'set_count', 'AttributeType': 'N'}   # Number type (or 'S' if you prefer)
         ],
         ProvisionedThroughput={
             'ReadCapacityUnits': 10,
