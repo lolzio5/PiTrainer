@@ -32,7 +32,7 @@ const WorkoutAnalysis: React.FC = () => {
       // Assuming response.data is an array of set objects:
       setSets(response.data);
     } catch (err) {
-      setError('Failed to load workout analysis data.');
+        return null;
     } finally {
       setLoading(false);
     }
@@ -49,14 +49,6 @@ const WorkoutAnalysis: React.FC = () => {
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#fb8c00" />
         <Text style={styles.loadingText}>Loading workout analysis...</Text>
-      </View>
-    );
-  }
-
-  if (error) {
-    return (
-      <View style={styles.errorContainer}>
-        <Text style={styles.errorText}>{error}</Text>
       </View>
     );
   }

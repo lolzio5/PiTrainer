@@ -129,11 +129,9 @@ def get_home():
         
     # Calculate lifetime metrics as you previously did
     metrics = calculate_lifetime_metrics(items)
-    feedback=most_recent_workout['feedback']
     result={
         "lifetime_metrics": metrics,
-        "last_workout": workout_qualities,
-        "feedback": feedback
+        "last_workout": workout_qualities
     }
     return jsonify(result)
 
@@ -308,7 +306,7 @@ def process_data():
             'mag_y': all_sets_data.get('mag_y'),
             'mag_z': all_sets_data.get('mag_z')
         }
-        flattened = {f"{outer}{inner}": value 
+        flattened = {f"{outer}_{inner}": list(value) 
              for outer, subdict in formatted_data.items() 
              for inner, value in subdict.items()}
         
@@ -318,6 +316,7 @@ def process_data():
         if workout_name=="Seated Cable Rows":
             with open("seated_cable_rows.pkl", "rb") as file:
                 model = pickle.load(file)
+                print(model)
                 rep_qualities=model.predict(data_to_predict)
         # elif workout_name=="Lat Pulldowns":
         #     model = pickle.load("lat_pulldowns.pkl")
@@ -330,15 +329,23 @@ def process_data():
         workout_id=global_reps[current_user]['workoutID']
        
         # Save the workout in the database
+        print(f"First rep_qualities {rep_qualities}, shape: {rep_qualities.shape}")
+        int_qualities=[]
+        for i, value in enumerate(rep_qualities):
+            print(type(rep_qualities[i]))
+            int_qualities.append(int(value))
+            print(type(int_qualities[i]))
+        
+
         workout_item = {
             "UserID": current_user,
             "WorkoutID": workout_id,
             "date": formatted_date,
             "exercise": workout_name,
-            "rep_number": len(rep_qualities),
-            "rep_quality": rep_qualities,
+            "rep_number": len(int_qualities),
+            "rep_quality": int_qualities,
         }
-
+        
         workouts_table.put_item(Item=workout_item)
         # Delete user data when workout is completed
         user_pi_id.pop(pi_id)
