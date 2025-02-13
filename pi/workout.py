@@ -18,11 +18,11 @@ class Workout:
         self.__assign()
 
     def __assign(self):
-        if self.workout == "Rows":
+        if self.workout == 'Seated Cable Rows' or self.workout == 'Rows':
             self.select = (0,2) # x-axis for velocity, z-axis for mag
             self.threshold_v = (0.375,0,0)
             self.threshold_m = (0,0,-40)
-            self.timeout = 1.25
+            self.timeout = 1.00
         
     def __sign_v(self):
         if (self.threshold_v[self.select[0]] < 0):

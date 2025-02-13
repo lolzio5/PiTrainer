@@ -1,18 +1,11 @@
-
 # import smbus2
 # import gpiozero
-import json
-import time
 
 from dataclasses import dataclass
 from enum import Enum
 import numpy as np
 from scipy import signal
 from scipy.stats import linregress, zscore, norm
-
-# import pandas as pd
-import ast
-import re
 
 
 # import matplotlib.pyplot as plt
@@ -153,7 +146,7 @@ def distance_analysis(pos_reps) -> list[float]:
             zscore(zranges)
     )
 
-    rep_scores = [1 - np.mean(pos_zscores[i]) for i in range(num_reps)]
+    rep_scores = [np.mean(pos_zscores[i]) for i in range(num_reps)]
     # print(f'rep_scores: {rep_scores}')
     return [zscore_to_percentile(score) for score in rep_scores]
     
@@ -199,35 +192,35 @@ def shakiness_analysis(accel_reps, dt:float=1):
         
     rep_scores = [np.mean(jerk_scores[i]) for i in range(rep_nb)]
 
-    return [zscore_to_percentile(score) for score in rep_scores]
+    return [100 - zscore_to_percentile(score) for score in rep_scores]
 
 
 def pos_score_to_feedback(score) -> str:
-    if score > 90:
+    if score > 70:
         return "Great job! You're keeping your range consistent throughout the reps."
-    elif score > 70:
+    elif score > 60:
         return "Good job! Try to keep your range more consistent throughout the reps."
-    elif score > 50:
+    elif score > 40:
         return "You're doing okay, but try to keep your range more consistent throughout the reps."
     else:
         return "You're having trouble maintaining range throughout the reps. Try to keep your range consistent. Make sure you fully extend on every movement."
 
 def time_score_to_feedback(score) -> str:
-    if score > 90:
+    if score > 70:
         return "Great job! You're keeping a consistent pace throughout the reps."
-    elif score > 70:
+    elif score > 60:
         return "Good job! Try to keep a more consistent pace throughout the reps."
-    elif score > 50:
+    elif score > 40:
         return "You're doing okay, but try to keep a more consistent pace throughout the reps."
     else:
         return "You're having trouble maintaining a consistent pace throughout the reps. Try to keep a more consistent pace."
 
 def shakiness_score_to_feedback(score) -> str:
-    if score > 90:
+    if score > 70:
         return "Great job! You're keeping your movements smooth throughout the reps."
-    elif score > 70:
+    elif score > 60:
         return "Good job! Try to keep your movements smoother throughout the reps."
-    elif score > 50:
+    elif score > 40:
         return "You're doing okay, but try to keep your movements smoother throughout the reps."
     else:
         return "You're having trouble maintaining smooth movements throughout the reps. Try to keep your movements smoother."
@@ -235,7 +228,7 @@ def shakiness_score_to_feedback(score) -> str:
 
 def pos_time_shak_to_overall_score(pos_score, time_score, shakiness_score):
     # return np.mean([0.6*time_score, 0.2*pos_score, 0.2*shakiness_score])
-    return 0.6*time_score + 0.2*pos_score + 0.2*shakiness_score
+    return 0.5*time_score + 0.25*pos_score + 0.25*shakiness_score
 
 
 # def give_feedback(data : SetData, exercise : Workout) -> dict[str, float|str]:

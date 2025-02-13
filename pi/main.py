@@ -7,7 +7,7 @@ from filtering import MovingAverage, KalmanFilter3D
 import accelerometer
 import magnet
 from workout import Workout
-from model_preprocessing import process_rep_to_dict
+from model_preprocessing import process_rep_to_dict, process_rep_to_features, clear_workout_features
 # from rep_analysis import SetData, Exercise, analyse_set, isolate_axis
 from rep_analysis import give_feedback, SetData, separate_reps, workout_feedback, sort_reps
 
@@ -81,7 +81,20 @@ def main() -> None:
     current_workout = Workout("Rows")
     set_count: int = 0
     current_workout_feedbacks: list[ dict[str, float] ] = []
-    workout_features_per_rep = []
+    workout_features = {
+        'accel_x': {},
+        'accel_y': {},
+        'accel_z': {},
+        'vel_x': {},
+        'vel_y': {},
+        'vel_z': {},
+        'pos_x': {},
+        'pos_y': {},
+        'pos_z': {},
+        'mag_x': {},
+        'mag_y': {},
+        'mag_z': {}
+    }
 
 
     init_time = time.time()
@@ -111,7 +124,7 @@ def main() -> None:
             case 'Seated Cable Rows':
                 if previous_workout_state != current_workout_state:
                     print('Starting Seated Cable Rows...')
-                    current_workout = Workout("Rows")
+                    current_workout = Workout('Seated Cable Rows')
                     accelx_filter.clear()
                     accely_filter.clear()
                     accelz_filter.clear()
@@ -142,10 +155,6 @@ def main() -> None:
                     # DATA.REP_INDICES ARE NOW UPDATED!! 
                     num_reps = len(accel_reps)
                     print(f'num_reps: {num_reps}')
-                    for i in range(num_reps):
-                        workout_features_per_rep.append(
-                            process_rep_to_dict(accel_reps[i], vel_reps[i], pos_reps[i], mag_reps[i])
-                        )
 
                     feedback = give_feedback(accel_reps, vel_reps, pos_reps, mag_reps, 
                                             data.sample_times, data.rep_indices)
@@ -153,15 +162,21 @@ def main() -> None:
                     current_workout_feedbacks.append(feedback)
 
                     send_set_data(feedback, set_count)
+
+                    for i in range(num_reps):
+                        process_rep_to_features(accel_reps[i], vel_reps[i], pos_reps[i],
+                                                mag_reps[i], workout_features)
                 
                 # Send WORKOUT DATA (multiple sets)
                 # overall_feedback = workout_feedback(current_workout_feedbacks)
-                print(f'features per rep shape: {np.shape(workout_features_per_rep)}')
-                print(workout_features_per_rep)
-                response = send_workout_data(workout_features_per_rep, current_workout.workout)
+                print(f'features per rep shape: {np.shape(workout_features)}')
+                print(workout_features)
+                response = send_workout_data(workout_features, current_workout.workout)
                 print(response)
+                # break # REMOVE IN PRODUCTION!!
+                workout_features = clear_workout_features(workout_features)
+                print(f'cleared_workout_features: {workout_features}')
                 set_count = 0
-                workout_features_per_rep.clear()
                 current_workout_feedbacks.clear()
                 accelx_filter.clear()
                 accely_filter.clear()
@@ -179,10 +194,6 @@ def main() -> None:
                 # DATA.REP_INDICES ARE NOW UPDATED!! 
                 num_reps = len(accel_reps)
                 print(f'num_reps: {num_reps}')
-                for i in range(num_reps):
-                    workout_features_per_rep.append(
-                        process_rep_to_dict(accel_reps[i], vel_reps[i], pos_reps[i], mag_reps[i])
-                    )
 
                 feedback = give_feedback(accel_reps, vel_reps, pos_reps, mag_reps, 
                                          data.sample_times, data.rep_indices)
@@ -193,6 +204,13 @@ def main() -> None:
 
                 set_count += 1
                 send_set_data(feedback, set_count)
+
+                print(f'workout_features before added: {workout_features}')
+                for i in range(num_reps):
+                    process_rep_to_features(accel_reps[i], vel_reps[i], pos_reps[i],
+                                            mag_reps[i], workout_features)
+                    
+                print(f'workout_features: {workout_features}')
 
                 accelx_filter.clear()
                 accely_filter.clear()
