@@ -234,7 +234,6 @@ def get_analysis():
             return jsonify({"error": "No analysis found for this workout"}), 404
         return jsonify(items)
     else:
-
         return jsonify({"error": "No workout in progress"}), 404
 
 @app.route("/api/start", methods=["POST"])
@@ -369,6 +368,7 @@ def process_data():
     try:
         # Parse incoming form data
         data = request.json
+        print(data)
         workout_name = data.get('name')
         pi_id=data.get('pi_id')
         current_user = user_pi_id.get(pi_id)
@@ -392,7 +392,7 @@ def process_data():
              for inner, value in subdict.items()}
         
         data_to_predict=pd.Dataframe(flattened)
-        
+        print(data_to_predict)
         # Predict the rep quality using saved model weights
         if workout_name=="Seated Cable Rows":
             model = pickle.load("seated_cable_rows.pkl")

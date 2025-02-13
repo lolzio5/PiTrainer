@@ -1,12 +1,5 @@
 import React, { useState, useCallback, useEffect } from 'react';
-import { 
-  View, 
-  Text, 
-  FlatList, 
-  StyleSheet, 
-  ActivityIndicator, 
-  TouchableOpacity 
-} from 'react-native';
+import { View, Text, FlatList, StyleSheet, ActivityIndicator, TouchableOpacity } from 'react-native';
 import axios from 'axios';
 import { useAuth } from '../context';
 import { router } from 'expo-router';
