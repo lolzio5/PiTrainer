@@ -9,13 +9,19 @@ from flask_jwt_extended import JWTManager, create_access_token, jwt_required, ge
 import uuid
 import pickle
 import pandas as pd
-import json
+import decimal
+from decimal import Decimal
+import time
 
 # ssh -i "C:\Users\themi\Downloads\piTrainerKey.pem" ubuntu@3.10.117.27
 app = Flask(__name__)
 CORS(app)  # Enable CORS for frontend requests
 app.config["JWT_SECRET_KEY"] = "supersecretkey"  # Change this in production!
 jwt = JWTManager(app)
+
+context = decimal.getcontext()
+context.traps[decimal.Inexact] = False
+context.traps[decimal.Rounded] = False
 
 # Connect the DynamoDB
 dynamodb = boto3.resource('dynamodb', region_name='us-east-1')
@@ -29,6 +35,7 @@ set_table = dynamodb.Table("SetData")
 # Global dictionary to store the reps of all users
 global_reps = {}
 user_pi_id={}
+global_user_workouts={}
 
 # Mock workout data
 def generate_rep_quality(min_val, max_val, num_reps=50):
@@ -216,19 +223,21 @@ def get_home():
 @jwt_required()
 def get_analysis():
     current_user = get_jwt_identity()  # Get the logged-in user's ID
-    workout_id=global_reps[current_user]['workoutID']
+    workout_id=global_user_workouts.get(current_user)
+    if workout_id is not None:
+        # Query all workouts for the user, sorted by date
+        response = set_table.query(
+            KeyConditionExpression="WorkoutID = :id",
+            ExpressionAttributeValues={":id": current_user},
+        )
+        items = response.get("Items", [])
+        if not items:
+            return jsonify({"error": "No analysis found for this workout"}), 404
+        global_user_workouts.pop(current_user)
+        return jsonify(items)
+    else:
 
-    # Query all workouts for the user, sorted by date
-    response = set_table.query(
-        KeyConditionExpression="WorkoutID = :id",
-        ExpressionAttributeValues={":id": workout_id},
-        ScanIndexForward=True
-    )
-    items = response.get("Items", [])
-    if not items:
-        return jsonify({"error": "No analysis found for this workout"}), 404
-    global_reps.pop(current_user)
-    return jsonify(items)
+        return jsonify({"error": "No workout in progress"}), 404
 
 @app.route("/api/start", methods=["POST"])
 @jwt_required()
@@ -242,15 +251,17 @@ def start_workout():
     )
     database_response = database_response.get("Items", [])
     pi_id=database_response[0]['pi_id']
+    workout_id=str(uuid.uuid4())
     global_reps[current_user] = {
         "pi_id":pi_id,
         "exercise": exercise,
         "reps": 0,
         "workout": True,
         "set": True,
-        "workoutID": str(uuid.uuid4())
+        "workoutID": workout_id
     }
     user_pi_id[pi_id]=current_user
+    global_user_workouts[current_user]=workout_id
     return jsonify(global_reps[current_user]['reps'])
 
 @app.route("/api/reps", methods=["GET"])
@@ -327,25 +338,25 @@ def analyse_data():
         current_user = user_pi_id.get(pi_id)
         workout_id=global_reps[current_user]['workoutID']
         set_count = data.get("set_count")
-        overall_score = data.get("overall_score")
+        overall_score = data.get("score")
         distance_score = data.get("distance_score")
         distance_feedback = data.get("distance_feedback")
         consistency_score = data.get("time_consistency_score")
         consistency_feedback = data.get("time_consistency_feedback")
         shakiness_score = data.get("shakiness_score")
         shakiness_feedback = data.get("shakiness_feedback")
-
         set_item = {
                 "WorkoutID": workout_id,
                 "set_count": set_count,
-                "overall_score": overall_score,
-                "distance_score": distance_score,
+                "overall_score": Decimal(str(overall_score)),
+                "distance_score": Decimal(str(distance_score)),
                 "distance_feedback": distance_feedback,
-                "time_consistency_score": consistency_score,
+                "time_consistency_score": Decimal(str(consistency_score)),
                 "time_consistency_feedback": consistency_feedback,
-                "shakiness_score": shakiness_score,
+                "shakiness_score": Decimal(str(shakiness_score)),
                 "shakiness_feedback": shakiness_feedback
             }
+        
         set_table.put_item(Item=set_item)
     except Exception as e:
         print(f"Error processing data: {e}")
@@ -361,7 +372,7 @@ def process_data():
 
         workout_name = data.get('name')
         pi_id=data.get('pi_id')
-        email = user_pi_id.get(pi_id)
+        current_user = user_pi_id.get(pi_id)
         feedback=data.get('feedback')
         formatted_data={
             'accel_x': data.get('accel_x'),
@@ -395,10 +406,10 @@ def process_data():
         current_date = datetime.now()
         formatted_date = current_date.strftime('%Y-%m-%d')
         
-        workout_id=global_reps[email]['workoutID']
+        workout_id=global_reps[current_user]['workoutID']
         # Save the workout in the database
         workout_item = {
-            "UserID": email,
+            "UserID": current_user,
             "WorkoutID": workout_id,
             "date": formatted_date,
             "exercise": workout_name,
@@ -410,7 +421,7 @@ def process_data():
         workouts_table.put_item(Item=workout_item)
         # Delete user data when workout is completed
         user_pi_id.pop(pi_id)
-
+        global_reps.pop(current_user)
         # Respond with JSON
         return jsonify("success"), 200
     

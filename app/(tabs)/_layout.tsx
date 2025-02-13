@@ -29,6 +29,7 @@ export default function TabLayout() {
           options={{
             title: 'Home',
             tabBarIcon: ({ color }) => <IconSymbol size={28} name="house.fill" color={color} />,
+            unmountOnBlur: true,
           }}
         />
         <Tabs.Screen
@@ -36,6 +37,7 @@ export default function TabLayout() {
           options={{
             title: 'Latest Workout',
             tabBarIcon: ({ color }) => <IconSymbol size={28} name="analysis" color={color} />,
+            unmountOnBlur: true,
           }}
         />
         <Tabs.Screen
@@ -43,6 +45,7 @@ export default function TabLayout() {
           options={{
             title: 'Workout History',
             tabBarIcon: ({ color }) => <IconSymbol size={28} name="history" color={color} />,
+            unmountOnBlur: true,
           }}
         />
         <Tabs.Screen

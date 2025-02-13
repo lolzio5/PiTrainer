@@ -36,14 +36,14 @@ def send_workout_data(all_sets_data: list[dict], workout_name: str) -> str:
     json_data['pi_id'] = USER
     json_data['name'] = workout_name
 
-    r = requests.post(url=f"{BACKEND_URL}/process", data=json_data)
+    r = requests.post(url=f"{BACKEND_URL}/process", json=json_data)
     return r.text
 
 def send_set_data(feedback: dict[str, float|str]) -> str:
     json_data = feedback
     json_data['pi_id'] = USER
 
-    r = requests.post(url=f'{BACKEND_URL}/anal', data=json_data)
+    r = requests.post(url=f'{BACKEND_URL}/anal', json=json_data)
     return r.text
 
 
