@@ -321,9 +321,5 @@ def main() -> None:
     print(feedbacks)
 
 
-
-
-
-
 if __name__ == '__main__':
     main()

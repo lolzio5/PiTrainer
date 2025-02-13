@@ -7,9 +7,8 @@ from filtering import MovingAverage, KalmanFilter3D
 import accelerometer
 import magnet
 from workout import Workout
-from model_preprocessing import process_rep_to_dict, process_rep_to_features, clear_workout_features
-# from rep_analysis import SetData, Exercise, analyse_set, isolate_axis
-from rep_analysis import give_feedback, SetData, separate_reps, workout_feedback, sort_reps
+from model_preprocessing import process_rep_to_features, clear_workout_features
+from rep_analysis import SetData, give_feedback, separate_reps
 
 ## ---- CONSTANTS ---- ##
 workout_states = [
@@ -96,13 +95,7 @@ def main() -> None:
         'mag_z': {}
     }
 
-
-    init_time = time.time()
-    g = 9.81
-
-    print('All ready! Sampling now...')
     i = 0
-    # try:
     while True:
         i += 1
         time.sleep(ts)
@@ -110,14 +103,8 @@ def main() -> None:
         # Get workout State
         previous_workout_state = current_workout_state
         if (i % 50) == 0:
-            # previous_workout_state = current_workout_state
             current_workout_state = get_workout_state()
             print(f'Polled State: {current_workout_state} {i}')
-
-        # # Timeout check
-        # if time.time() - init_time > 300: # 5 min workout timeout
-        #     current_workout_state = workout_states[-1]
-        #     data = SetData([], [], [], [], [], [], ts)
 
         # STATE MACHINE
         match current_workout_state:
@@ -148,9 +135,8 @@ def main() -> None:
             case "Idle":
                 if previous_workout_state == current_workout_state:
                     continue
+                # if coming from any workout state
                 if previous_workout_state != 'Pseudo Idle':
-                    # package last set
-                    # Sort Reps
                     accel_reps, vel_reps, pos_reps, mag_reps, data = separate_reps(data, current_workout.select)
                     # DATA.REP_INDICES ARE NOW UPDATED!! 
                     num_reps = len(accel_reps)
@@ -167,15 +153,9 @@ def main() -> None:
                         process_rep_to_features(accel_reps[i], vel_reps[i], pos_reps[i],
                                                 mag_reps[i], workout_features)
                 
-                # Send WORKOUT DATA (multiple sets)
-                # overall_feedback = workout_feedback(current_workout_feedbacks)
-                print(f'features per rep shape: {np.shape(workout_features)}')
-                print(workout_features)
                 response = send_workout_data(workout_features, current_workout.workout)
-                print(response)
-                # break # REMOVE IN PRODUCTION!!
                 workout_features = clear_workout_features(workout_features)
-                print(f'cleared_workout_features: {workout_features}')
+                
                 set_count = 0
                 current_workout_feedbacks.clear()
                 accelx_filter.clear()
@@ -193,25 +173,17 @@ def main() -> None:
                 accel_reps, vel_reps, pos_reps, mag_reps, data = separate_reps(data, current_workout.select)
                 # DATA.REP_INDICES ARE NOW UPDATED!! 
                 num_reps = len(accel_reps)
-                print(f'num_reps: {num_reps}')
-
                 feedback = give_feedback(accel_reps, vel_reps, pos_reps, mag_reps, 
                                          data.sample_times, data.rep_indices)
-                print(f'feedback calculated: {feedback}')
                 current_workout_feedbacks.append(feedback)
-
-                print(f'feedback: {feedback}')
 
                 set_count += 1
                 send_set_data(feedback, set_count)
 
-                print(f'workout_features before added: {workout_features}')
                 for i in range(num_reps):
                     process_rep_to_features(accel_reps[i], vel_reps[i], pos_reps[i],
                                             mag_reps[i], workout_features)
                     
-                print(f'workout_features: {workout_features}')
-
                 accelx_filter.clear()
                 accely_filter.clear()
                 accelz_filter.clear()
@@ -219,7 +191,6 @@ def main() -> None:
                 magnety_filter.clear()
                 magnetz_filter.clear()
                 data = SetData([], [], [], [], [], [], ts)
-                # Send SET data
                 continue
 
             case _:
@@ -234,11 +205,9 @@ def main() -> None:
                 continue
 
         if current_workout_state in ["Idle", "Pseudo Idle"]:
-            # time.sleep(ts)
             continue
 
         accelx, accely, accelz = accelerometer.lis3dh_read_xyz()
-        # print(accelx, accely, accelz)
         if i % 2 == 0: # 50 Hz for ts = 0.01 / fs = 100Hz
             magx, magy, magz = magnet.Mag_Read()
 
@@ -273,15 +242,6 @@ def main() -> None:
             send_rep_number(rep_nb)
             data.rep_indices.append(len(data.sample_times)-1)
             print(f'Rep {rep_nb} counted!')
-
-    # except (KeyboardInterrupt, Exception) as e:
-    #     print(e)
-    #     # print(accel_filtered)
-    #     # print('\n\n\n\n')
-    #     # print(mag_filtered)
-    #     print('Restarting...')
-    #     # main()
-    #     pass
 
 
 if __name__ == '__main__':
