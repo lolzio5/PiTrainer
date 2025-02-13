@@ -11,34 +11,36 @@ import ast
 import re
 import json
 
-array_columns = ['rep_nb','accel_x', 'accel_y', 'accel_z', 'vel_x', 'vel_y', 'vel_z', 'pos_x', 'pos_y', 'pos_z', 'mag_x', 'mag_y', 'mag_z']
+df = pd.read_csv('backend/lat_pulldowns.csv', header=None)
 
-# Open the file and read the lines
-with open("backend/seated_cable_rows.csv", "r") as file:
-    lines = file.readlines()
+grouped = df.groupby(0).agg(lambda x: list(x)).reset_index()
 
-# Manually process rows
-data = []
-for line in lines[1:]:
-    # Strip newline and split by commas using the regular expression
-    parts = re.split(r',(?=(?:[^"]*"[^"]*")*[^"]*$)', line.strip())
-    data.append(parts)
+
+array_columns = ['rep_nb','time_stamp', 'accel_x', 'accel_y', 'accel_z', 'vel_x', 'vel_y', 'vel_z', 'pos_x', 'pos_y', 'pos_z', 'mag_x', 'mag_y', 'mag_z']
+
+# # Open the file and read the lines
+# with open("backend/seated_cable_rows.csv", "r") as file:
+#     lines = file.readlines()
+
+# # Manually process rows
+# data = []
+# for line in lines[1:]:
+#     # Strip newline and split by commas using the regular expression
+#     parts = re.split(r',(?=(?:[^"]*"[^"]*")*[^"]*$)', line.strip())
+#     data.append(parts)
 
 # Convert to DataFrame
-df = pd.DataFrame(data)
+df = pd.DataFrame(grouped)
 df.columns = array_columns
 
-for column in df.columns:
-    # Apply ast.literal_eval only to columns that contain list-like strings
-    df[column] = df[column].apply(lambda x:ast.literal_eval(x))
-    df[column] = df[column].apply(lambda x:ast.literal_eval(x) if type(x) == str else x)
+print(df)
+# for column in df.columns:
+#     # Apply ast.literal_eval only to columns that contain list-like strings
+#     df[column] = df[column].apply(lambda x:ast.literal_eval(x))
+#     df[column] = df[column].apply(lambda x:ast.literal_eval(x) if type(x) == str else x)
 
-labels = [93, 78, 87, 78, 84, 85, 78, 89, 67, 89,
-    78, 56, 78, 89, 56, 57, 65, 78, 87, 78,
-    79, 78, 67, 65, 73, 86, 68, 68, 76, 54,
-    36, 78, 68, 64, 89, 87, 67, 67, 77, 68,
-    90, 87, 69, 87, 84, 84, 81, 59, 75, 76
-]
+labels = [78, 78, 56, 90, 98, 78, 79, 67, 89, 89, 89, 90, 89, 89, 67, 89, 98, 78, 79, 88, 65, 77, 76, 78, 78, 64, 46, 57, 87, 87, 54, 34,
+54, 34, 32, 76, 57, 89, 79, 76, 78, 98, 87, 78, 76, 57, 87, 68, 78, 87, 75]
 df['quality_score'] = labels
 
 # Convert list columns to statistical features
@@ -81,31 +83,34 @@ X_train, X_test, y_train, y_test = train_test_split(
 )
 
 param_grid = {
-    'max_depth': [3, 5, 10, 20, 25, None],
+    'n_estimators': [50, 100, 200, 300],
+    'max_depth': [3, 5, 7, 10, 15, 20],
+    'learning_rate': [0.01, 0.05, 0.1, 0.2],
 }
 
 # from sklearn.model_selection import RandomizedSearchCV
 
 # random_search = GridSearchCV(
-#     XGBRegressor(random_state=42),
+#     XGBRegressor(random_state=42, verbose=1),
 #     param_grid=param_grid,
 #     cv=2,  # More cross-validation folds
-#     scoring='neg_mean_squared_error'
+#     scoring='neg_mean_squared_error',
+#     verbose=1
 # )
 # random_search.fit(X_train, y_train)
 
 
 
-# best_tree = random_search.best_estimator_
+#best_tree = random_search.best_estimator_
 
-# with open("backend/seated_cable_rows.pkl", "wb") as file:
+# with open("backend/lat_pulldowns.pkl", "wb") as file:
 #     pickle.dump(best_tree, file)
 
-with open("backend/seated_cable_rows.pkl", "rb") as file:
+with open("backend/lat_pulldowns.pkl", "rb") as file:
     best_tree = pickle.load(file)
 
-print(type(X_test))
-print(X_test)
+# print(type(X_test))
+# print(X_test)
 # Evaluate
 def evaluate_model(best_tree, X_test, y_test):
     y_pred = best_tree.predict(X_test)
