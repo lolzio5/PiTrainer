@@ -9,9 +9,11 @@ from enum import Enum
 import numpy as np
 from scipy import signal
 from scipy.stats import linregress, zscore, norm
+
 # import pandas as pd
 import ast
 import re
+
 
 # import matplotlib.pyplot as plt
 from filtering import MovingAverage
@@ -74,7 +76,7 @@ def zscore_to_percentile(score: float) -> float:
 def find_highest_peak(sig : list[float], offset : int):
     tmp_peaks, peak_props = signal.find_peaks(sig, -1 * np.inf)
     print(f'tmp_peaks: {tmp_peaks} \n peaks_props: {peak_props}')
-    if peak_props['peak_heights'] == []:
+    if peak_props['peak_heights'] == [] or peak_props['peak_heights'].size == 0:
         return int(offset)
     highest = np.argmax(peak_props["peak_heights"]) if tmp_peaks is not None else 0
     return int(tmp_peaks[highest] + offset)
@@ -88,6 +90,7 @@ def sort_reps(data: SetData, reps_live : list[int] , sel):
     pos_peaks = []
     reps_live = data.rep_indices
     reps_live.insert(0, 0)
+
     for i in range(1, len(reps_live)):
         current = int(reps_live[i-1])
         next = int(reps_live[i])
@@ -96,6 +99,12 @@ def sort_reps(data: SetData, reps_live : list[int] , sel):
             continue
         pos_peaks.append(find_highest_peak(window,current))
 
+    # must also do on the last window
+    # reps_live[-1] now becomes current
+    window = vel_smoothed[reps_live[-1] :]
+    if not window:
+        return
+    pos_peaks.append(find_highest_peak(window, reps_live[-1]))
     return pos_peaks
 
 
@@ -112,6 +121,11 @@ def separate_reps(data: SetData, sel):
         vel_reps.append( data.vel[indices[i] : indices[i+1]] )
         pos_reps.append( data.pos[indices[i] : indices[i+1]] )
         magn_reps.append( data.magn[indices[i] : indices[i+1]] )
+
+    accel_reps.append( data.accel[indices[-1] :] )
+    vel_reps.append( data.vel[indices[-1] :] )
+    pos_reps.append( data.pos[indices[-1] :] )
+    magn_reps.append( data.magn[indices[-1] :] )
 
     return accel_reps, vel_reps, pos_reps, magn_reps, data
 
@@ -139,7 +153,7 @@ def distance_analysis(pos_reps) -> list[float]:
             zscore(zranges)
     )
 
-    rep_scores = [np.mean(pos_zscores[i]) for i in range(num_reps)]
+    rep_scores = [1 - np.mean(pos_zscores[i]) for i in range(num_reps)]
     # print(f'rep_scores: {rep_scores}')
     return [zscore_to_percentile(score) for score in rep_scores]
     
@@ -231,14 +245,17 @@ def give_feedback(accel_reps, vel_reps, pos_reps, mag_reps, sample_times, rep_in
     feedback = []
     rep_scores = []
     num_reps = len(reps)
+    print(f'num_reps passed in: {num_reps}')
 
     dist_scores = distance_analysis(pos_reps)
+    print(f'len dist_scores: {len(dist_scores)}, len pos: {len(pos_reps)}')
     time_consistency_scores = time_consistency_analysis(sample_times, reps)
     shakiness_scores = shakiness_analysis(accel_reps)
 
 
-    [rep_scores.append(pos_time_shak_to_overall_score(dist_scores[i],time_consistency_scores[i],shakiness_scores[i])) for i in range(0,num_reps-1)]
-    # rep_scores = [pos_time_shak_to_overall_score(dist_scores[i],time_consistency_scores[i],shakiness_scores[i]) for i in range(num_reps)]
+    # [rep_scores.append(pos_time_shak_to_overall_score(dist_scores[i],time_consistency_scores[i],shakiness_scores[i])) for i in range(0,num_reps-1)]
+    rep_scores = [pos_time_shak_to_overall_score(dist_scores[i],time_consistency_scores[i],shakiness_scores[i]) for i in range(num_reps)]
+    # print(f'rep_scores: {rep_scores}')
     feedback = {
         "score" : np.mean(rep_scores),
         "distance_score": np.mean(dist_scores),

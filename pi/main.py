@@ -26,8 +26,8 @@ USER = "pi"
 def get_workout_state() -> str:
     PI_ID = USER
     r = requests.post(f"{BACKEND_URL}/pipoll", json=PI_ID)
-    r = r.json()
-    return r['response']
+    j = r.json()
+    return r.text if 'response' not in j.keys() else j['response']
 
 ## MODIFIY
 def send_workout_data(all_sets_data: list[dict], workout_name: str) -> str:
@@ -36,14 +36,15 @@ def send_workout_data(all_sets_data: list[dict], workout_name: str) -> str:
     json_data['pi_id'] = USER
     json_data['name'] = workout_name
 
-    r = requests.post(url=f"{BACKEND_URL}/process", data=json_data)
+    r = requests.post(url=f"{BACKEND_URL}/process", json=json_data)
     return r.text
 
-def send_set_data(feedback: dict[str, float|str]) -> str:
+def send_set_data(feedback: dict[str, float|str], set_count: int) -> str:
     json_data = feedback
+    json_data['set_count'] = set_count
     json_data['pi_id'] = USER
 
-    r = requests.post(url=f'{BACKEND_URL}/anal', data=json_data)
+    r = requests.post(url=f'{BACKEND_URL}/anal', json=json_data)
     return r.text
 
 
@@ -80,7 +81,7 @@ def main() -> None:
     current_workout = Workout("Rows")
     set_count: int = 0
     current_workout_feedbacks: list[ dict[str, float] ] = []
-    workout_features_per_set = []
+    workout_features_per_rep = []
 
 
     init_time = time.time()
@@ -142,7 +143,7 @@ def main() -> None:
                     num_reps = len(accel_reps)
                     print(f'num_reps: {num_reps}')
                     for i in range(num_reps):
-                        workout_features_per_set.append(
+                        workout_features_per_rep.append(
                             process_rep_to_dict(accel_reps[i], vel_reps[i], pos_reps[i], mag_reps[i])
                         )
 
@@ -150,13 +151,17 @@ def main() -> None:
                                             data.sample_times, data.rep_indices)
                     print(f'feedback calculated: {feedback}')
                     current_workout_feedbacks.append(feedback)
+
+                    send_set_data(feedback, set_count)
                 
                 # Send WORKOUT DATA (multiple sets)
                 # overall_feedback = workout_feedback(current_workout_feedbacks)
-                send_workout_data(workout_features_per_set, current_workout.workout)
-
+                print(f'features per rep shape: {np.shape(workout_features_per_rep)}')
+                print(workout_features_per_rep)
+                response = send_workout_data(workout_features_per_rep, current_workout.workout)
+                print(response)
                 set_count = 0
-                workout_features_per_set.clear()
+                workout_features_per_rep.clear()
                 current_workout_feedbacks.clear()
                 accelx_filter.clear()
                 accely_filter.clear()
@@ -175,7 +180,7 @@ def main() -> None:
                 num_reps = len(accel_reps)
                 print(f'num_reps: {num_reps}')
                 for i in range(num_reps):
-                    workout_features_per_set.append(
+                    workout_features_per_rep.append(
                         process_rep_to_dict(accel_reps[i], vel_reps[i], pos_reps[i], mag_reps[i])
                     )
 
@@ -184,9 +189,11 @@ def main() -> None:
                 print(f'feedback calculated: {feedback}')
                 current_workout_feedbacks.append(feedback)
 
-                send_set_data(feedback)
+                print(f'feedback: {feedback}')
 
                 set_count += 1
+                send_set_data(feedback, set_count)
+
                 accelx_filter.clear()
                 accely_filter.clear()
                 accelz_filter.clear()
