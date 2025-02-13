@@ -105,8 +105,8 @@ export default function Dashboard() {
       .finally(() => {
         setIsLoading(false); // Ensure loading state is updated in both success and failure cases
       });
-    }, [])
-  );
+    }, []));
+
 
   const stats = [
     { label: 'Total Workouts', value: lifetimeMetrics?.total_workouts.toString() || 'N/A' },
@@ -116,12 +116,13 @@ export default function Dashboard() {
   ];
 
   if (isLoading) {
-    return (
-      <View style={styles.container}>
-        <ActivityIndicator size="large" color="#0000ff" />
-      </View>
-    );
-  }
+      return (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#008000" />
+          <Text style={styles.loadingText}>Loading home page...</Text>
+        </View>
+      );
+    }
 
   return (
     <View style={styles.container}>
@@ -310,6 +311,18 @@ export default function Dashboard() {
       justifyContent: 'space-between', // Space them out
       alignItems: 'flex-start', // Align vertically at the top
       width: '100%', // Ensure the row takes the full width
+    },
+    loadingContainer: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+      backgroundColor: '#f5f5f5',
+    },
+    loadingText: {
+      marginTop: 15,
+      fontSize: 18,
+      fontWeight: '600',
+      color: '#555',
     },
   });
   

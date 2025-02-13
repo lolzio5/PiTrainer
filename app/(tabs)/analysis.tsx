@@ -84,7 +84,6 @@ const WorkoutAnalysis: React.FC = () => {
       {sets.map((setItem, index) => (
         <View key={index} style={styles.card}>
           <Text style={styles.cardTitle}>Set {setItem.set_count}</Text>
-          <Text style={styles.cardText}>Workout ID: {setItem.WorkoutID}</Text>
           <Text style={styles.cardText}>Overall Score: {setItem.overall_score}</Text>
           
           <View style={styles.section}>

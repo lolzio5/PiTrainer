@@ -11,7 +11,6 @@ import pickle
 import pandas as pd
 import decimal
 from decimal import Decimal
-import time
 
 # ssh -i "C:\Users\themi\Downloads\piTrainerKey.pem" ubuntu@3.10.117.27
 app = Flask(__name__)
@@ -233,7 +232,7 @@ def get_analysis():
         items = response.get("Items", [])
         if not items:
             return jsonify({"error": "No analysis found for this workout"}), 404
-        global_user_workouts.pop(current_user)
+        #global_user_workouts.pop(current_user)
         return jsonify(items)
     else:
 
@@ -249,7 +248,7 @@ def start_workout():
         KeyConditionExpression="UserID = :user",
         ExpressionAttributeValues={":user": current_user},
     )
-    database_response = database_response.get("Items", [])
+    database_response.get("Items", [])
     pi_id=database_response[0]['pi_id']
     workout_id=str(uuid.uuid4())
     global_reps[current_user] = {
@@ -298,7 +297,6 @@ def end_workout():
     return jsonify("Workout Ended")
 
 
-
 # Routes for the Pi
 @app.route("/api/rep", methods=["POST"])
 def count_rep():
@@ -337,6 +335,8 @@ def analyse_data():
         pi_id = data.get("pi_id")
         current_user = user_pi_id.get(pi_id)
         workout_id=global_reps[current_user]['workoutID']
+        print(workout_id)
+        global_user_workouts[current_user]=workout_id
         set_count = data.get("set_count")
         overall_score = data.get("score")
         distance_score = data.get("distance_score")
@@ -358,6 +358,7 @@ def analyse_data():
             }
         
         set_table.put_item(Item=set_item)
+        print("Set data added successfully!")
     except Exception as e:
         print(f"Error processing data: {e}")
         return jsonify({"error": "Failed to process data"}), 500
