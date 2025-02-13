@@ -1,7 +1,7 @@
 import pandas as pd
 import numpy as np
 from sklearn.ensemble import RandomForestRegressor
-from xgboost import XGBRegressor
+#from xgboost import XGBRegressor
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 from sklearn.model_selection import GridSearchCV
@@ -84,19 +84,25 @@ param_grid = {
     'max_depth': [3, 5, 10, 20, 25, None],
 }
 
-from sklearn.model_selection import RandomizedSearchCV
+# from sklearn.model_selection import RandomizedSearchCV
 
-random_search = GridSearchCV(
-    XGBRegressor(random_state=42),
-    param_grid=param_grid,
-    cv=2,  # More cross-validation folds
-    scoring='neg_mean_squared_error'
-)
-random_search.fit(X_train, y_train)
+# random_search = GridSearchCV(
+#     XGBRegressor(random_state=42),
+#     param_grid=param_grid,
+#     cv=2,  # More cross-validation folds
+#     scoring='neg_mean_squared_error'
+# )
+# random_search.fit(X_train, y_train)
 
 
 
-best_tree = random_search.best_estimator_
+# best_tree = random_search.best_estimator_
+
+# with open("backend/seated_cable_rows.pkl", "wb") as file:
+#     pickle.dump(best_tree, file)
+
+with open("backend/seated_cable_rows.pkl", "rb") as file:
+    best_tree = pickle.load(file)
 
 # Evaluate
 def evaluate_model(best_tree, X_test, y_test):
