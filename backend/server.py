@@ -253,7 +253,6 @@ def analyse_data():
         pi_id = data.get("pi_id")
         current_user = user_pi_id.get(pi_id)
         workout_id=global_reps[current_user]['workoutID']
-        print(workout_id)
         global_user_workouts[current_user]=workout_id
         set_count = data.get("set_count")
         overall_score = data.get("score")
@@ -266,17 +265,16 @@ def analyse_data():
         set_item = {
                 "WorkoutID": workout_id,
                 "set_count": set_count,
-                "overall_score": Decimal(str(overall_score)),
-                "distance_score": Decimal(str(distance_score)),
+                "overall_score": Decimal(str(round(overall_score, ndigits=2))),
+                "distance_score": Decimal(str(round(distance_score, ndigits=2))),
                 "distance_feedback": distance_feedback,
-                "time_consistency_score": Decimal(str(consistency_score)),
+                "time_consistency_score": Decimal(str(round(consistency_score, ndigits=2))),
                 "time_consistency_feedback": consistency_feedback,
-                "shakiness_score": Decimal(str(shakiness_score)),
+                "shakiness_score": Decimal(str(round(shakiness_score, ndigits=2))),
                 "shakiness_feedback": shakiness_feedback
             }
         
         set_table.put_item(Item=set_item)
-        print("Set data added successfully!")
     except Exception as e:
         print(f"Error processing data: {e}")
         return jsonify({"error": "Failed to process data"}), 500
@@ -287,7 +285,7 @@ def process_data():
     try:
         # Parse incoming form data
         data = request.json
-        print(data)
+
         workout_name = data.get('name')
         pi_id=data.get('pi_id')
         current_user = user_pi_id.get(pi_id)
@@ -311,7 +309,7 @@ def process_data():
              for inner, value in subdict.items()}
         
         data_to_predict=pd.DataFrame(flattened)
-        print(data_to_predict)
+
         # Predict the rep quality using saved model weights
         if workout_name=="Seated Cable Rows":
             with open("seated_cable_rows.pkl", "rb") as file:
@@ -329,13 +327,10 @@ def process_data():
         workout_id=global_reps[current_user]['workoutID']
        
         # Save the workout in the database
-        print(f"First rep_qualities {rep_qualities}, shape: {rep_qualities.shape}")
+
         int_qualities=[]
         for i, value in enumerate(rep_qualities):
-            print(type(rep_qualities[i]))
             int_qualities.append(int(value))
-            print(type(int_qualities[i]))
-        
 
         workout_item = {
             "UserID": current_user,
