@@ -172,21 +172,22 @@ if __name__ == "__main__":
     init_time = time.time()
     file = open("data.txt","w")
     file_2 = open("reps.txt","w")
+    rep_nb = 1
     try:
         while True:
             new_time = time.time() - init_time
             mag_x,mag_y,mag_z = Mag_Read()
             x, y, z = lis3dh_read_xyz()
-            print(f"x : {mag_x} y : {mag_y} z : {mag_z}")
+            #print(f"x : {mag_x} y : {mag_y} z : {mag_z}")
 
-            # accelx_filter.step(x)
-            # accely_filter.step(y)
-            # accelz_filter.step(z)
-            # magx_filter.update(mag_x)
-            # magy_filter.update(mag_y)
-            # magz_filter.update(mag_z)
-
-            # file.write(f"{new_time},{accelx_filter.acceleration},{accely_filter.acceleration},{accelz_filter.acceleration},{magx_filter.output},{magy_filter.output},{magz_filter.output}")
+            accelx_filter.step(x)
+            accely_filter.step(y)
+            accelz_filter.step(z)
+            magx_filter.update(mag_x)
+            magy_filter.update(mag_y)
+            magz_filter.update(mag_z)
+            rep_nb=rep_nb+1
+            file.write(f"{rep_nb},{accelx_filter.acceleration},{accely_filter.acceleration},{accelz_filter.acceleration},{accelx_filter.velocity},{accely_filter.velocity},{accelz_filter.velocity},{accelx_filter.position},{accely_filter.position},{accelz_filter.position},{magx_filter.output},{magy_filter.output},{magz_filter.output}")
             
             # reps = current_workout.update([accelx_filter.velocity,accely_filter.velocity,accelz_filter.velocity],[magx_filter.output,magy_filter.output,magz_filter.output])
             # if (reps[0] == True):
