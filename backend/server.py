@@ -13,7 +13,6 @@ import pandas as pd
 import decimal
 from decimal import Decimal
 
-# ssh -i "C:\Users\themi\Downloads\piTrainerKey.pem" ubuntu@3.10.117.27
 app = Flask(__name__)
 CORS(app)  # Enable CORS for frontend requests
 app.config["JWT_SECRET_KEY"] = "supersecretkey"
@@ -314,11 +313,11 @@ def process_data():
         if workout_name=="Seated Cable Rows":
             with open("seated_cable_rows.pkl", "rb") as file:
                 model = pickle.load(file)
-                print(model)
                 rep_qualities=model.predict(data_to_predict)
-        # elif workout_name=="Lat Pulldowns":
-        #     model = pickle.load("lat_pulldowns.pkl")
-        #     rep_qualities=model.predict(data)
+        elif workout_name=="Lat Pulldowns":
+            with open("lat_pulldowns.pkl", "rb") as file:
+                model = pickle.load(file)
+                rep_qualities=model.predict(data_to_predict)
 
         # Format as YYYY-MM-DD
         current_date = datetime.now()
@@ -329,7 +328,7 @@ def process_data():
         # Save the workout in the database
 
         int_qualities=[]
-        for i, value in enumerate(rep_qualities):
+        for value in rep_qualities:
             int_qualities.append(int(value))
 
         workout_item = {
