@@ -28,14 +28,45 @@ context.traps[decimal.Rounded] = False
 dynamodb = boto3.resource('dynamodb', region_name='us-east-1')
 
 # Delete tables
-#delete_table("UserData")
-#delete_table("Users")
-#delete_table("SetData")
+# delete_table("UserData")
+# delete_table("Users")
+# delete_table("SetData")
 
 # Create tables
 workouts_table = dynamodb.Table("UserData")
 users_table = dynamodb.Table("Users")
 set_table = dynamodb.Table("SetData")
+
+def generate_rep_quality(min_val, max_val, num_reps=50):
+    output=[]
+    for _ in range(num_reps):
+        output.append(random.randint(min_val, max_val))
+    return output
+
+def generate_mock_data(email):
+    # Create mock workouts
+    workouts = [
+    {
+        "id": str(uuid.uuid4()) ,
+        "date": (datetime(2025, 2, 4) + timedelta(days=i)).strftime("%Y-%m-%d"),
+        "rep_number": 50,
+        "exercise": "Triceps Extension",
+        "rep_quality": generate_rep_quality(50 - (i * 5), 95 - (i * 5))
+    }
+    for i in range(8)
+    ]
+    for data in workouts:
+
+        workout_item = {
+            "UserID": email,  # Associate workout with logged-in user
+            "WorkoutID": data['id'],
+            "date": data["date"],
+            "exercise": data["exercise"],
+            "rep_number": data["rep_number"],
+            "rep_quality": data["rep_quality"],
+        }
+        workouts_table.put_item(Item=workout_item)  # Store in DynamoDB
+    return jsonify({"message": "Workout added successfully!"}), 201
 
 def initialize_tables():
     create_database_table(dynamodb)
@@ -314,11 +345,11 @@ def process_data():
         if workout_name=="Seated Cable Rows":
             with open("seated_cable_rows.pkl", "rb") as file:
                 model = pickle.load(file)
-                print(model)
                 rep_qualities=model.predict(data_to_predict)
-        # elif workout_name=="Lat Pulldowns":
-        #     model = pickle.load("lat_pulldowns.pkl")
-        #     rep_qualities=model.predict(data)
+        elif workout_name=="Lat Pulldowns":
+            with open("lat_pulldowns.pkl", "rb") as file:
+                model = pickle.load(file)
+                rep_qualities=model.predict(data_to_predict)
 
         # Format as YYYY-MM-DD
         current_date = datetime.now()
@@ -329,7 +360,7 @@ def process_data():
         # Save the workout in the database
 
         int_qualities=[]
-        for i, value in enumerate(rep_qualities):
+        for value in rep_qualities:
             int_qualities.append(int(value))
 
         workout_item = {
